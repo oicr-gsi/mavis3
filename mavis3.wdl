@@ -33,7 +33,7 @@ workflow mavis3 {
   Map[String,mavisResources] resources = {
     "hg19": {
       "alignerReference": "/hg19.2bit",
-      "annotations": "/ensembl69_hg19_annotations_with_ncrna.json",
+      "annotations": "/ensembl69_hg19_annotations_with_ncrna.v3.json",
       "dgvAnnotation": "/dgv_hg19_variants.tab",
       "masking": "/hg19_masking.tab",
       "referenceGenome": "/hg19_random.fa",
