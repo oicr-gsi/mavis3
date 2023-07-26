@@ -10,18 +10,8 @@
             "mavis3.outputFileNamePrefix": "EPT0068",
             "mavis3.reference": "hg19",
             "mavis3.diseaseStatus": "diseased",
-            "mavis3.generateConfig.outputFileNamePrefix": null,
-            "mavis3.generateConfig.diseaseStatus": null,
-            "mavis3.generateConfig.alignerReference": null,
-            "mavis3.generateConfig.annotations": null,
-            "mavis3.generateConfig.dgvAnnotation": null,
-            "mavis3.generateConfig.masking": null,
-            "mavis3.generateConfig.referenceGenome": null,
-            "mavis3.generateConfig.templateMetadata": null,
-            "mavis3.generateConfig.reference": null,
-            "mavis3.generateConfig.modules": null,
-            "mavis3.generateConfig.delly": null,
-            "mavis3.generateConfig.starfusion": {
+            "mavis3.delly": null,
+            "mavis3.starfusion": {
                 "contents": {
                     "configuration": "/.mounts/labs/gsi/testdata/mavis/EPT0068_CHR11_DOWNSAMPLED/input_data/EPT0068_180821_NB551051_0067_AHTC7YBGX5_CTGAAGCT-AGGCTATA_L001.star-fusion.fusion_predictions.abridged_chr11.tsv",
                     "externalIds": [
@@ -33,9 +23,9 @@
                 },
                 "type": "EXTERNAL"
             },
-            "mavis3.generateConfig.arriba": null,
-            "mavis3.generateConfig.wgBam": null,
-            "mavis3.generateConfig.wtBam": {
+            "mavis3.arriba": null,
+            "mavis3.wgBam": null,
+            "mavis3.wtBam": {
                 "contents": {
                     "configuration": "/.mounts/labs/gsi/testdata/mavis/EPT0068_CHR11_DOWNSAMPLED/input_data/EPT0068_180821_NB551051_0067_AHTC7YBGX5_CTGAAGCT-AGGCTATA_L001.Aligned.sortedByCoord.out_chr11.bam",
                     "externalIds": [
@@ -47,6 +37,21 @@
                 },
                 "type": "EXTERNAL"
             }, 
+            "mavis3.generateConfig.outputFileNamePrefix": null,
+            "mavis3.generateConfig.diseaseStatus": null,
+            "mavis3.generateConfig.alignerReference": null,
+            "mavis3.generateConfig.annotations": null,
+            "mavis3.generateConfig.dgvAnnotation": null,
+            "mavis3.generateConfig.masking": null,
+            "mavis3.generateConfig.referenceGenome": null,
+            "mavis3.generateConfig.templateMetadata": null,
+            "mavis3.generateConfig.reference": null,
+            "mavis3.generateConfig.modules": null,
+            "mavis3.generateConfig.delly": null,
+            "mavis3.generateConfig.starfusion": null,
+            "mavis3.generateConfig.arriba": null,
+            "mavis3.generateConfig.wgBam": null,
+            "mavis3.generateConfig.wtBam": null,
             "mavis3.generateConfig.drawFusionsOnly": null,
             "mavis3.generateConfig.minClustersPerFile": null,
             "mavis3.generateConfig.uninformativeFilter": null,
