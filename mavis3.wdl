@@ -16,12 +16,22 @@ workflow mavis3 {
     String outputFileNamePrefix
     String reference
     String diseaseStatus
+    String delly = ""
+    String starfusion = ""
+    String arriba = ""
+    String wgBam = ""
+    String wtBam = ""
   }
 
   parameter_meta {
     outputFileNamePrefix: "Sample identifier, which will be used for final naming of output files"
-    diseaseStatus: "Tissue status. For example: diseased"
     reference: "The genome reference build. for example: hg19, hg38"
+    diseaseStatus: "Tissue status. For example: diseased"
+    delly: "SV calls from Delly"
+    starfusion: "SV calls from Starfusion"
+    arriba: "SV calls from Arriba"
+    wgBam: "Whole genome BAM file"
+    wtBam: "Whole transcriptome BAM file"
   }
 
   String sanitizedSID = sub(outputFileNamePrefix, "_", ".")
@@ -49,7 +59,7 @@ workflow mavis3 {
     }
   }
 
- 
+
   call generateConfig { 
     input: 
       outputFileNamePrefix=sanitizedSID, 
@@ -61,7 +71,12 @@ workflow mavis3 {
       referenceGenome=resources[reference].referenceGenome, 
       templateMetadata=resources[reference].templateMetadata,
       reference=reference,
-      modules=mavis_modules
+      modules=mavis_modules,
+      delly=delly,
+      starfusion=starfusion,
+      arriba=arriba,
+      wgBam=wgBam,
+      wtBam=wtBam
   }
 
   ## Feed output of generateConfig to input of runMavis
@@ -115,11 +130,11 @@ task generateConfig {
     String templateMetadata
     String reference
     String modules
-    String? delly
-    String? starfusion
-    String? arriba
-    String? wgBam
-    String? wtBam
+    String delly
+    String starfusion
+    String arriba
+    String wgBam
+    String wtBam
     Boolean? drawFusionsOnly
     Int? minClustersPerFile
     Boolean? uninformativeFilter
