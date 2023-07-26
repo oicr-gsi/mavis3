@@ -20,6 +20,7 @@
             "mavis3.generateConfig.templateMetadata": null,
             "mavis3.generateConfig.reference": null,
             "mavis3.generateConfig.modules": null,
+            "mavis3.generateConfig.delly": null,
             "mavis3.generateConfig.starfusion": {
                 "contents": {
                     "configuration": "/.mounts/labs/gsi/testdata/mavis/EPT0068_CHR11_DOWNSAMPLED/input_data/EPT0068_180821_NB551051_0067_AHTC7YBGX5_CTGAAGCT-AGGCTATA_L001.star-fusion.fusion_predictions.abridged_chr11.tsv",
@@ -32,6 +33,8 @@
                 },
                 "type": "EXTERNAL"
             },
+            "mavis3.generateConfig.arriba": null,
+            "mavis3.generateConfig.wgBam": null,
             "mavis3.generateConfig.wtBam": {
                 "contents": {
                     "configuration": "/.mounts/labs/gsi/testdata/mavis/EPT0068_CHR11_DOWNSAMPLED/input_data/EPT0068_180821_NB551051_0067_AHTC7YBGX5_CTGAAGCT-AGGCTATA_L001.Aligned.sortedByCoord.out_chr11.bam",
@@ -43,7 +46,15 @@
                     ]
                 },
                 "type": "EXTERNAL"
-            },           
+            }, 
+            "mavis3.generateConfig.drawFusionsOnly": null,
+            "mavis3.generateConfig.minClustersPerFile": null,
+            "mavis3.generateConfig.uninformativeFilter": null,
+            "mavis3.generateConfig.filterMinFlankingReads": null,
+            "mavis3.generateConfig.filterMinLinkingSplitReads": null,
+            "mavis3.generateConfig.filterMinRemappedReads": null,
+            "mavis3.generateConfig.filterMinSpanningReads": null,
+            "mavis3.generateConfig.filterTransHomopolymers": null,            
             "mavis3.generateConfig.jobMemory": null,
             "mavis3.generateConfig.timeout": null,
             "mavis3.runMavis.configFile": null,
@@ -59,7 +70,7 @@
         },
         "id": "EPT0068_CHR11_DOWNSAMPLED",
         "metadata": {
-            "mavis.summary": {
+            "mavis3.summary": {
                 "contents": [
                     {
                         "outputDirectory": "@SCRATCH@/@DATE@_Workflow_mavis3_EPT0068_CHR11_DOWNSAMPLED_@JENKINSID@"
@@ -67,7 +78,7 @@
                 ],
                 "type": "ALL"
             },
-            "mavis.drawings": {
+            "mavis3.drawings": {
                 "contents": [
                     {
                         "outputDirectory": "@SCRATCH@/@DATE@_Workflow_mavis3_EPT0068_CHR11_DOWNSAMPLED_@JENKINSID@"
@@ -75,7 +86,7 @@
                 ],
                 "type": "ALL"
             },
-            "mavis.nscvWT": {
+            "mavis3.nscvWT": {
                 "contents": [
                     {
                         "outputDirectory": "@SCRATCH@/@DATE@_Workflow_mavis3_EPT0068_CHR11_DOWNSAMPLED_@JENKINSID@"
@@ -83,7 +94,7 @@
                 ],
                 "type": "ALL"
             },
-            "mavis.nscvWG": {
+            "mavis3.nscvWG": {
                 "contents": [
                     {
                         "outputDirectory": "@SCRATCH@/@DATE@_Workflow_mavis3_EPT0068_CHR11_DOWNSAMPLED_@JENKINSID@"
