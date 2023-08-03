@@ -60,16 +60,13 @@ Output | Type | Description
  
  * Running MAVIS 3
  
- #### Generate input configuration file for MAVIS
+ #### Generate input configuration file for MAVIS 3
  
- <<<
- 
-     ## Use python snippet to generate config file
-     python3<<CODE 
+ '''
      import json
      import os
  
-     #Set appropriate reference paths
+     ## Set appropriate reference paths
      if REFERENCE == "hg19":
          root =  str(os.environ['HG19_ROOT'])
          mavisRoot = str(os.environ['HG19_MAVIS_ROOT'])
@@ -77,12 +74,12 @@ Output | Type | Description
          root =  str(os.environ['HG38_ROOT'])
          mavisRoot = str(os.environ['HG38_MAVIS_ROOT'])
  
-     #Convert WDL booleans to python booleans
+     ## Convert WDL booleans to python booleans
      drawFusionsOnlyPython = eval(DRAW_FUSIONS)
      uninformativeFilterPython = eval(UNINFORMATIVE_FILTER)
      filterTransHomopolymersPython = eval(FILTER_TRANS_HOMOPOLYMERS)
  
-     #Separate input arrays
+     ## Separate input arrays
      b = (sep=' ' BAMS)
      bams = b.split()
      l = (sep=' ' BAM_LIBRARY_DESIGNS)
@@ -94,7 +91,7 @@ Output | Type | Description
      sl = (sep=' ' SV_LIBRARY_DESIGNS)
      svLibraryDesigns = sl.split()
  
-     #Check that appropriate inputs have been supplied for WG and WT analyses
+     ## Check that appropriate inputs have been supplied for WG and WT analyses
      if ("WG" in bamLibraryDesigns and "WG" in svLibraryDesigns) or ("WT" in bamLibraryDesigns and "WT" in svLibraryDesigns):
          inputs = True
  
@@ -140,7 +137,7 @@ Output | Type | Description
                          "assume_no_untemplated": True,
                          "file_type": "delly",
                          "inputs": [
-                             str(svFiles[index])
+                             DELLY_FILE_PATH
                          ]
                      }
                  }
@@ -150,7 +147,7 @@ Output | Type | Description
                          "assume_no_untemplated": True,
                          "file_type": "starfusion",
                          "inputs": [
-                             str(svFiles[index])
+                             STARFUSION_FILE_PATH
                          ]
                      }
                  }
@@ -160,7 +157,7 @@ Output | Type | Description
                          "assume_no_untemplated": True,
                          "file_type": "arriba",
                          "inputs": [
-                             str(svFiles[index])
+                             ARRIBA_FILE_PATH
                          ]
                      }
                  }
@@ -173,7 +170,7 @@ Output | Type | Description
                          "assign": [
                              "delly"
                          ],
-                         "bam_file": bams[index],
+                         "bam_file": BAM_FILE_PATH,
                          "disease_status": DISEASE_STATUS,
                          "protocol": "genome"
                      }
@@ -182,7 +179,7 @@ Output | Type | Description
                  jsonDict["libraries"] = {
                      "WT." + OUTPUT_FILE_NAME_PREFIX: {
                          "assign": [],
-                         "bam_file": bams[index],
+                         "bam_file": BAM_FILE_PATH,
                          "disease_status": DISEASE_STATUS,
                          "protocol": "transcriptome",
                          "strand_specific": True
@@ -198,12 +195,11 @@ Output | Type | Description
          with open("config.json", 'w') as jsonFile:
              json.dump(jsonDict, jsonFile)
  
-     CODE
-   >>>
+   '''
 
- #### Run MAVIS
+ #### Run MAVIS 3
 
- <<<
+ '''
      
      snakemake --jobs 100 --configfile=CONFIG_FILE -s Snakefile
  
@@ -233,7 +229,8 @@ Output | Type | Description
      echo "MAVIS job finished but THERE ARE NO RESULTS"
      exit 1
  
-   >>>
+   '''
+   
  ## Support
 
 For support, please file an issue on the [Github project](https://github.com/oicr-gsi) or send an email to gsi@oicr.on.ca .
