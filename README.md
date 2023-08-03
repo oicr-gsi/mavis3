@@ -62,7 +62,7 @@ Output | Type | Description
  
  #### Generate input configuration file for MAVIS 3
  
- '''
+ ```
      import json
      import os
  
@@ -195,11 +195,11 @@ Output | Type | Description
          with open("config.json", 'w') as jsonFile:
              json.dump(jsonDict, jsonFile)
  
-   '''
+   ```
 
  #### Run MAVIS 3
 
- '''
+ ```
      
      snakemake --jobs 100 --configfile=CONFIG_FILE -s Snakefile
  
@@ -229,7 +229,7 @@ Output | Type | Description
      echo "MAVIS job finished but THERE ARE NO RESULTS"
      exit 1
  
-   '''
+   ```
    
  ## Support
 
