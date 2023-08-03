@@ -1,5 +1,15 @@
 version 1.0
 
+struct bamData {
+  File bam
+  String libraryDesign
+}
+
+struct svData {
+  File svFile
+  String libraryDesign
+  String workflowName
+}
 
 struct mavisResources {
     String alignerReference
@@ -16,22 +26,16 @@ workflow mavis3 {
     String outputFileNamePrefix
     String reference
     String diseaseStatus
-    String delly = ""
-    String starfusion = ""
-    String arriba = ""
-    String wgBam = ""
-    String wtBam = ""
+    Array[bamData] inputBams
+    Array[svData] svData
   }
 
   parameter_meta {
     outputFileNamePrefix: "Sample identifier, which will be used for final naming of output files"
     reference: "The genome reference build. for example: hg19, hg38"
     diseaseStatus: "Tissue status. For example: diseased"
-    delly: "SV calls from Delly"
-    starfusion: "SV calls from Starfusion"
-    arriba: "SV calls from Arriba"
-    wgBam: "Whole genome BAM file"
-    wtBam: "Whole transcriptome BAM file"
+    inputBams: "Collection of alignment files with metadata"
+    svData: "Collection of SV calls with metadata"
   }
 
   String sanitizedSID = sub(outputFileNamePrefix, "_", ".")
@@ -60,6 +64,18 @@ workflow mavis3 {
   }
 
 
+  scatter(b in inputBams) {
+    String bams = "~{b.bam}"
+    String bamLibraryDesigns = b.libraryDesign
+  }
+
+  scatter(s in svData) {
+    String svFiles = "~{s.svFile}"
+    String workflowNames = s.workflowName
+    String svLibraryDesigns = s.libraryDesign
+  }
+
+
   call generateConfig { 
     input: 
       outputFileNamePrefix=sanitizedSID, 
@@ -72,11 +88,11 @@ workflow mavis3 {
       templateMetadata=resources[reference].templateMetadata,
       reference=reference,
       modules=mavis_modules,
-      delly=delly,
-      starfusion=starfusion,
-      arriba=arriba,
-      wgBam=wgBam,
-      wtBam=wtBam
+      bams=bams,
+      bamLibraryDesigns=bamLibraryDesigns,
+      svFiles=svFiles,
+      workflowNames=workflowNames,
+      svLibraryDesigns=svLibraryDesigns
   }
 
   ## Feed output of generateConfig to input of runMavis
@@ -91,10 +107,10 @@ workflow mavis3 {
 
 
   meta {
-   author: "Hannah Driver"
-   email: "hannah.driver@oicr.on.ca"
-   description: "MAVIS workflow, annotation of structural variants. An application framework for the rapid generation of structural variant consensus, able to visualize the genetic impact and context as well as process both genome and transcriptome data."
-   dependencies: [
+    author: "Hannah Driver"
+    email: "hannah.driver@oicr.on.ca"
+    description: "MAVIS workflow, annotation of structural variants. An application framework for the rapid generation of structural variant consensus, able to visualize the genetic impact and context as well as process both genome and transcriptome data."
+    dependencies: [
       {
         name: "mavis/3.1.0",
         url: "http://mavis.bcgsc.ca/"
@@ -130,11 +146,11 @@ task generateConfig {
     String templateMetadata
     String reference
     String modules
-    String delly
-    String starfusion
-    String arriba
-    String wgBam
-    String wtBam
+    Array[String] bams
+    Array[String] bamLibraryDesigns
+    Array[String] svFiles
+    Array[String] workflowNames
+    Array[String] svLibraryDesigns
     Boolean? drawFusionsOnly
     Int? minClustersPerFile
     Boolean? uninformativeFilter
@@ -159,11 +175,11 @@ task generateConfig {
     templateMetadata: "Chromosome Band Information, used for visualization"
     reference: "The genome reference build. for example: hg19, hg38"
     modules: "Modules needed to run MAVIS"
-    delly: "SV calls from Delly"
-    starfusion: "SV calls from Starfusion"
-    arriba: "SV calls from Arriba"
-    wgBam: "Whole genome BAM file"
-    wtBam: "Whole transcriptome BAM file"
+    bams: "Array of input bam file paths"
+    bamLibraryDesigns: "List of library designs (e.g. WG, WT)"
+    svFiles: "Array of SV calls"
+    workflowNames: "List of workflow names for SV iputs (e.g. delly, starfusion, arriba)"
+    svLibraryDesigns: "List of library designs (e.g. WG, WT)"
     drawFusionsOnly: "flag for MAVIS visualization control" 
     minClustersPerFile: "Determines the way parallel calculations are organized"
     uninformativeFilter: "If enabled, only interested in events inside genes, speeds up calculations"
@@ -209,17 +225,23 @@ task generateConfig {
     uninformativeFilterPython = eval("~{uninformativeFilterActual}".title())
     filterTransHomopolymersPython = eval("~{filterTransActual}".title())
 
+    #Separate input arrays
+    b = "~{sep=' ' bams}"
+    bams = b.split()
+    l = "~{sep=' ' bamLibraryDesigns}"
+    bamLibraryDesigns = l.split()
+    s = "~{sep=' ' svFiles}"
+    svFiles = s.split()
+    w = "~{sep=' ' workflowNames}"
+    workflowNames = w.split()
+    sl = "~{sep=' ' svLibraryDesigns}"
+    svLibraryDesigns = sl.split()
+
     #Check that appropriate inputs have been supplied for WG and WT analyses
-    WG = False
-    WT = False
+    if ("WG" in bamLibraryDesigns and "WG" in svLibraryDesigns) or ("WT" in bamLibraryDesigns and "WT" in svLibraryDesigns):
+        inputs = True
 
-    if "~{wgBam}" != "" and "~{delly}" != "":
-        WG = True
-
-    if "~{wtBam}" != "" and ("~{starfusion}" != "" or "~{arriba}" != ""):
-        WT = True
-
-    if not WG and not WT:
+    if inputs != True:   
         print("Missing inputs for whole genome and whole transcriptome analyses. Please ensure complete inputs are "
               "supplied for at least one of these analyses.")
 
@@ -254,65 +276,66 @@ task generateConfig {
             ]
         }
 
-        if WG and "~{delly}" != "":
-            jsonDict["convert"] = {
-                "delly": {
-                    "assume_no_untemplated": True,
-                    "file_type": "delly",
-                    "inputs": [
-                        "~{delly}"
-                    ]
+        for index, name in enumerate(workflowNames):
+            if name.lower() == "delly":
+                jsonDict["convert"] = {
+                    "delly": {
+                        "assume_no_untemplated": True,
+                        "file_type": "delly",
+                        "inputs": [
+                            str(svFiles[index])
+                        ]
+                    }
                 }
-            }
+            if name.lower() == "starfusion":
+                jsonDict["convert"] = {
+                    "starfusion": {
+                        "assume_no_untemplated": True,
+                        "file_type": "starfusion",
+                        "inputs": [
+                            str(svFiles[index])
+                        ]
+                    }
+                }
+            if name.lower() == "arriba":
+                jsonDict["convert"] = {
+                    "arriba": {
+                        "assume_no_untemplated": True,
+                        "file_type": "arriba",
+                        "inputs": [
+                            str(svFiles[index])
+                        ]
+                    }
+                }
 
-        if WT and "~{starfusion}" != "":
-            if "convert" not in jsonDict:
-                jsonDict["convert"] = {}
-            jsonDict["convert"]["starfusion"] = {
-                "assume_no_untemplated": True,
-                "file_type": "starfusion",
-                "inputs": [
-                    "~{starfusion}"
-                ]
-            }
-        if WT and "~{arriba}" != "":
-            if "convert" not in jsonDict:
-                jsonDict["convert"] = {}
-            jsonDict["convert"]["arriba"] = {
-                "assume_no_untemplated": True,
-                "file_type": "arriba",
-                "inputs": [
-                    "~{arriba}"
-                ]
-            }
   
-        if WG:
-            jsonDict["libraries"] = {
-                "WG." + "~{outputFileNamePrefix}": {
-                    "assign": [
-                        "delly"
-                    ],
-                    "bam_file": "~{wgBam}",
-                    "disease_status": "~{diseaseStatus}",
-                    "protocol": "genome"
+        for index, bam in enumerate(bams):
+            if bamLibraryDesigns[index] == "WG":
+                jsonDict["libraries"] = {
+                    "WG." + "~{outputFileNamePrefix}": {
+                        "assign": [
+                            "delly"
+                        ],
+                        "bam_file": bams[index],
+                        "disease_status": "~{diseaseStatus}",
+                        "protocol": "genome"
+                    }
                 }
-            }
+            if bamLibraryDesigns[index] == "WT":
+                jsonDict["libraries"] = {
+                    "WT." + "~{outputFileNamePrefix}": {
+                        "assign": [],
+                        "bam_file": bams[index],
+                        "disease_status": "~{diseaseStatus}",
+                        "protocol": "transcriptome",
+                        "strand_specific": True
+                    }
+                }
 
-        if WT:
-            if "libraries" not in jsonDict:
-                jsonDict["libraries"] = {}
-            jsonDict["libraries"]["WT." + "~{outputFileNamePrefix}"] = {
-                "assign": [],
-                "bam_file": "~{wtBam}",
-                "disease_status": "~{diseaseStatus}",
-                "protocol": "transcriptome",
-                "strand_specific": True
-            }
-
-            if "~{starfusion}" != "":
+        for name in workflowNames:
+            if name.lower() == "starfusion":
                 jsonDict["libraries"]["WT." + "~{outputFileNamePrefix}"]["assign"].append("starfusion")
-
-            if "~{arriba}" != "":
+            if name.lower() == "arriba":
                 jsonDict["libraries"]["WT." + "~{outputFileNamePrefix}"]["assign"].append("arriba")
 
         with open("config.json", 'w') as jsonFile:
