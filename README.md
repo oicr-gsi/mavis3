@@ -31,14 +31,14 @@ Parameter|Value|Description
 #### Optional task parameters:
 Parameter|Value|Default|Description
 ---|---|---|---
-`generateConfig.drawFusionsOnly`|Boolean?|None|flag for MAVIS visualization control
-`generateConfig.minClustersPerFile`|Int?|None|Determines the way parallel calculations are organized
-`generateConfig.uninformativeFilter`|Boolean?|None|If enabled, only interested in events inside genes, speeds up calculations
-`generateConfig.filterMinFlankingReads`|Int?|None|Minimum number of flanking pairs for a call by flanking pairs
-`generateConfig.filterMinLinkingSplitReads`|Int?|None|Minimum number of linking split reads for a call by split reads
-`generateConfig.filterMinRemappedReads`|Int?|None|Minimum number of remapped reads for a call by contig
-`generateConfig.filterMinSpanningReads`|Int?|None|Minimum number of spanning reads for a call by spanning reads
-`generateConfig.filterTransHomopolymers`|Boolean?|None|When enabled, transcript sequences containing homopolymer regions are removed
+`generateConfig.drawFusionsOnly`|Boolean?|False|flag for MAVIS visualization control
+`generateConfig.minClustersPerFile`|Int?|100|Determines the way parallel calculations are organized
+`generateConfig.uninformativeFilter`|Boolean?|True|If enabled, only interested in events inside genes, speeds up calculations
+`generateConfig.filterMinFlankingReads`|Int?|10|Minimum number of flanking pairs for a call by flanking pairs
+`generateConfig.filterMinLinkingSplitReads`|Int?|1|Minimum number of linking split reads for a call by split reads
+`generateConfig.filterMinRemappedReads`|Int?|5|Minimum number of remapped reads for a call by contig
+`generateConfig.filterMinSpanningReads`|Int?|5|Minimum number of spanning reads for a call by spanning reads
+`generateConfig.filterTransHomopolymers`|Boolean?|False|When enabled, transcript sequences containing homopolymer regions are removed
 `generateConfig.jobMemory`|Int|6|Memory allocated for this job
 `generateConfig.timeout`|Int|6|Timeout in hours, needed to override imposed limits
 `runMavis.jobMemory`|Int|36|Memory allocated for this job
@@ -56,9 +56,9 @@ Output | Type | Description
 
 
 ## Commands
- This section lists command(s) run by WORKFLOW workflow
+ This section lists command(s) run by MAVIS 3 workflow
  
- * Running WORKFLOW
+ * Running MAVIS 3
  
  #### Generate input configuration file for MAVIS
  
