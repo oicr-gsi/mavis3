@@ -278,7 +278,7 @@ task generateConfig {
 
         for index, name in enumerate(workflowNames):
             if name.lower() == "delly":
-                jsonDict["convert"] = {
+                entry = {
                     "delly": {
                         "assume_no_untemplated": True,
                         "file_type": "delly",
@@ -287,8 +287,10 @@ task generateConfig {
                         ]
                     }
                 }
+                jsonDict["convert"].append(entry)
+
             if name.lower() == "starfusion":
-                jsonDict["convert"] = {
+                entry = {
                     "starfusion": {
                         "assume_no_untemplated": True,
                         "file_type": "starfusion",
@@ -297,8 +299,10 @@ task generateConfig {
                         ]
                     }
                 }
+                jsonDict["convert"].append(entry)
+
             if name.lower() == "arriba":
-                jsonDict["convert"] = {
+                entry = {
                     "arriba": {
                         "assume_no_untemplated": True,
                         "file_type": "arriba",
@@ -307,7 +311,7 @@ task generateConfig {
                         ]
                     }
                 }
-
+                jsonDict["convert"].append(entry)
   
         for index, bam in enumerate(bams):
             if bamLibraryDesigns[index] == "WG":
