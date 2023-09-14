@@ -279,34 +279,34 @@ task generateConfig {
 
         for index, name in enumerate(workflowNames):
             if name.lower() == "delly":
-                entry = {
-                    "assume_no_untemplated": True,
-                    "file_type": "delly",
-                    "inputs": [
-                        str(svFiles[index])
-                    ]
-                }
-                jsonDict["convert"]["delly"].append(entry)
+                if "delly" not in jsonDict["convert"]:
+                    jsonDict["convert"]["delly"] = {
+                        "assume_no_untemplated": True,
+                        "file_type": "delly",
+                        "inputs": [
+                            str(svFiles[index])
+                        ]
+                    }
 
             if name.lower() == "starfusion":
-                entry = {
-                    "assume_no_untemplated": True,
-                    "file_type": "starfusion",
-                    "inputs": [
-                        str(svFiles[index])
-                    ]
-                }
-                jsonDict["convert"]["starfusion"].append(entry)
+                if "starfusion" not in jsonDict["convert"]:
+                    jsonDict["convert"]["starfusion"] = {
+                        "assume_no_untemplated": True,
+                        "file_type": "starfusion",
+                        "inputs": [
+                            str(svFiles[index])
+                        ]
+                    }
 
             if name.lower() == "arriba":
-                entry = {
-                    "assume_no_untemplated": True,
-                    "file_type": "arriba",
-                    "inputs": [
-                        str(svFiles[index])
-                    ]
-                }
-                jsonDict["convert"]["arriba"].append(entry)
+                if "arriba" not in jsonDict["convert"]:
+                    jsonDict["convert"]["arriba"] = {
+                        "assume_no_untemplated": True,
+                        "file_type": "arriba",
+                        "inputs": [
+                            str(svFiles[index])
+                        ]
+                    }
   
         for index, bam in enumerate(bams):
             if bamLibraryDesigns[index] == "WG":
