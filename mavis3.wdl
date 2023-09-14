@@ -273,7 +273,8 @@ task generateConfig {
             ],
             "reference.template_metadata": [
                 mavisRoot+"~{templateMetadata}"
-            ]
+            ],
+            "convert": {}
         }
 
         for index, name in enumerate(workflowNames):
