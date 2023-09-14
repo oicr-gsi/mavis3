@@ -280,39 +280,33 @@ task generateConfig {
         for index, name in enumerate(workflowNames):
             if name.lower() == "delly":
                 entry = {
-                    "delly": {
-                        "assume_no_untemplated": True,
-                        "file_type": "delly",
-                        "inputs": [
-                            str(svFiles[index])
-                        ]
-                    }
+                    "assume_no_untemplated": True,
+                    "file_type": "delly",
+                    "inputs": [
+                        str(svFiles[index])
+                    ]
                 }
-                jsonDict["convert"].append(entry)
+                jsonDict["convert"]["delly"].append(entry)
 
             if name.lower() == "starfusion":
                 entry = {
-                    "starfusion": {
-                        "assume_no_untemplated": True,
-                        "file_type": "starfusion",
-                        "inputs": [
-                            str(svFiles[index])
-                        ]
-                    }
+                    "assume_no_untemplated": True,
+                    "file_type": "starfusion",
+                    "inputs": [
+                        str(svFiles[index])
+                    ]
                 }
-                jsonDict["convert"].append(entry)
+                jsonDict["convert"]["starfusion"].append(entry)
 
             if name.lower() == "arriba":
                 entry = {
-                    "arriba": {
-                        "assume_no_untemplated": True,
-                        "file_type": "arriba",
-                        "inputs": [
-                            str(svFiles[index])
-                        ]
-                    }
+                    "assume_no_untemplated": True,
+                    "file_type": "arriba",
+                    "inputs": [
+                        str(svFiles[index])
+                    ]
                 }
-                jsonDict["convert"].append(entry)
+                jsonDict["convert"]["arriba"].append(entry)
   
         for index, bam in enumerate(bams):
             if bamLibraryDesigns[index] == "WG":
