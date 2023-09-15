@@ -273,41 +273,40 @@ task generateConfig {
             ],
             "reference.template_metadata": [
                 mavisRoot+"~{templateMetadata}"
-            ]
+            ],
+            "convert": {}
         }
 
         for index, name in enumerate(workflowNames):
             if name.lower() == "delly":
-                jsonDict["convert"] = {
-                    "delly": {
+                if "delly" not in jsonDict["convert"]:
+                    jsonDict["convert"]["delly"] = {
                         "assume_no_untemplated": True,
                         "file_type": "delly",
                         "inputs": [
                             str(svFiles[index])
                         ]
                     }
-                }
+
             if name.lower() == "starfusion":
-                jsonDict["convert"] = {
-                    "starfusion": {
+                if "starfusion" not in jsonDict["convert"]:
+                    jsonDict["convert"]["starfusion"] = {
                         "assume_no_untemplated": True,
                         "file_type": "starfusion",
                         "inputs": [
                             str(svFiles[index])
                         ]
                     }
-                }
+
             if name.lower() == "arriba":
-                jsonDict["convert"] = {
-                    "arriba": {
+                if "arriba" not in jsonDict["convert"]:
+                    jsonDict["convert"]["arriba"] = {
                         "assume_no_untemplated": True,
                         "file_type": "arriba",
                         "inputs": [
                             str(svFiles[index])
                         ]
                     }
-                }
-
   
         for index, bam in enumerate(bams):
             if bamLibraryDesigns[index] == "WG":

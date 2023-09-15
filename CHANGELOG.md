@@ -1,3 +1,6 @@
+## 1.0.2   - 2023-09-15
+ - Update 'for loop' to append different SV files to "convert" section of config rather than overwriting them
+
 ## 1.0.1   - 2023-08-22
  - Initial Release
    
