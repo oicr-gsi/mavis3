@@ -274,7 +274,8 @@ task generateConfig {
             "reference.template_metadata": [
                 mavisRoot+"~{templateMetadata}"
             ],
-            "convert": {}
+            "convert": {},
+            "libraries": {}
         }
 
         for index, name in enumerate(workflowNames):
@@ -310,8 +311,8 @@ task generateConfig {
   
         for index, bam in enumerate(bams):
             if bamLibraryDesigns[index] == "WG":
-                jsonDict["libraries"] = {
-                    "WG." + "~{outputFileNamePrefix}": {
+                if "WG." + "~{outputFileNamePrefix}" not in jsonDict["libraries"]: 
+                    jsonDict["libraries"]["WG." + "~{outputFileNamePrefix}"] = {
                         "assign": [
                             "delly"
                         ],
@@ -319,17 +320,15 @@ task generateConfig {
                         "disease_status": "~{diseaseStatus}",
                         "protocol": "genome"
                     }
-                }
             if bamLibraryDesigns[index] == "WT":
-                jsonDict["libraries"] = {
-                    "WT." + "~{outputFileNamePrefix}": {
+                if "WT." + "~{outputFileNamePrefix}" not in jsonDict["libraries"]:
+                    jsonDict["libraries"]["WT." + "~{outputFileNamePrefix}"] = {
                         "assign": [],
                         "bam_file": bams[index],
                         "disease_status": "~{diseaseStatus}",
                         "protocol": "transcriptome",
                         "strand_specific": True
                     }
-                }
 
         for name in workflowNames:
             if name.lower() == "starfusion":
