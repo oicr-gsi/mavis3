@@ -1,3 +1,6 @@
+## 1.0.3   - 2023-09-18
+ - Update 'for loop' to append different library types to the "libraries" section of config rather than overwriting them
+
 ## 1.0.2   - 2023-09-15
  - Update 'for loop' to append different SV files to "convert" section of config rather than overwriting them
 
