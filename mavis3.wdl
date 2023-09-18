@@ -310,25 +310,21 @@ task generateConfig {
   
         for index, bam in enumerate(bams):
             if bamLibraryDesigns[index] == "WG":
-                jsonDict["libraries"] = {
-                    "WG." + "~{outputFileNamePrefix}": {
-                        "assign": [
-                            "delly"
-                        ],
-                        "bam_file": bams[index],
-                        "disease_status": "~{diseaseStatus}",
-                        "protocol": "genome"
-                    }
+                jsonDict["libraries"]["WG." + "~{outputFileNamePrefix}"] = {
+                    "assign": [
+                        "delly"
+                    ],
+                    "bam_file": bams[index],
+                    "disease_status": "~{diseaseStatus}",
+                    "protocol": "genome"
                 }
             if bamLibraryDesigns[index] == "WT":
-                jsonDict["libraries"] = {
-                    "WT." + "~{outputFileNamePrefix}": {
-                        "assign": [],
-                        "bam_file": bams[index],
-                        "disease_status": "~{diseaseStatus}",
-                        "protocol": "transcriptome",
-                        "strand_specific": True
-                    }
+                jsonDict["libraries"]["WT." + "~{outputFileNamePrefix}"] = {
+                    "assign": [],
+                    "bam_file": bams[index],
+                    "disease_status": "~{diseaseStatus}",
+                    "protocol": "transcriptome",
+                    "strand_specific": True
                 }
 
         for name in workflowNames:
