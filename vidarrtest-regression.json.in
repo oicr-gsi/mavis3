@@ -131,7 +131,7 @@
             {
                 "metrics_calculate": "@CHECKOUT@/tests/calculate.sh",
                 "metrics_compare": "@CHECKOUT@/tests/compare.sh",
-                "output_metrics": "/.mounts/labs/gsi/testdata/mavis3/EPT0068_CHR11_DOWNSAMPLED/output_expectation/metrics/EPT0068_CHR11_DOWNSAMPLED.metrics.txt",
+                "output_metrics": "/.mounts/labs/gsi/testdata/mavis3/1.1.0/output_metrics/EPT0068_CHR11_DOWNSAMPLED.metrics.txt",
                 "type": "script"
             }
         ]
