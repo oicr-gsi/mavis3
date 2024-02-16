@@ -90,10 +90,10 @@ workflow mavis3 {
           workflowNames = workflowNames,
           svLibraryDesigns = svLibraryDesigns,
           modules = filterdelly_modules,
-          megafusion_executable = megafusion_executable,
-          megafusion_arriba = megafusion_arriba,
-          megafusion_starfusion = megafusion_starfusion,
-          survivor_executable = survivor_executable
+          megafusionExecutable = megafusion_executable,
+          megafusionArriba = megafusion_arriba,
+          megafusionStarfusion = megafusion_starfusion,
+          survivorExecutable = survivor_executable
       }
     }    
     String svFiles = select_first([filterDelly.mavisDelly,"~{s.svFile}"])
@@ -164,10 +164,12 @@ task filterDelly {
     Array[String] workflowNames
     Array[String] svLibraryDesigns
     String modules
-    String megafusion_executable
-    String megafusion_arriba
-    String megafusion_starfusion
-    String survivor_executable
+    String megafusionExecutable
+    String megafusionArriba
+    String megafusionStarfusion
+    String survivorExecutable
+    Int maxLines = 2000
+    Int variantSupport = 10
     Int jobMemory = 24
     Int timeout = 6
   }
@@ -178,15 +180,19 @@ task filterDelly {
     workflowNames: "List of workflow names for SV inputs (e.g. delly, starfusion, arriba)"
     svLibraryDesigns: "List of library designs (e.g. WG, WT)"
     modules: "Modules needed to filter delly file"
-    megafusion_executable: "Path to MegaFusion executable"
-    megafusion_arriba: "Path to MegaFusion arriba.json file"
-    megafusion_starfusion: "Path to MegaFusion starfusion.json file"
-    survivor_executable: "Path to SURVIVOR executable"
+    megafusionExecutable: "Path to MegaFusion executable"
+    megafusionArriba: "Path to MegaFusion arriba.json file"
+    megafusionStarfusion: "Path to MegaFusion starfusion.json file"
+    survivorExecutable: "Path to SURVIVOR executable"
+    maxLines: "Maximum number of lines a delly file can have before needing filtering. Default is 2000"
+    variantSupport: "Paired-end support for structural variants, in pairs. Default is 10"
     jobMemory: "Memory allocated for this job"
     timeout: "Timeout in hours, needed to override imposed limits"
   }
 
   command <<<
+
+    set -eu -o pipefail
 
     python3<<CODE 
     import subprocess
@@ -211,16 +217,16 @@ task filterDelly {
             with gzip.open(original_delly, 'r') as f:
               lines = sum(1 for line in f)
 
-            if lines > 10000:
+            if lines > ~{maxLines}:
                 #Check if other SV callers exist or else survivor can't be run
                 if len(svFiles) > 1:
                     #Run megafusion
                     for index, name in enumerate(workflowNames):
                         if name.lower() == "arriba":
-                            arriba_command = f'python3 ~{megafusion_executable} --json ~{megafusion_arriba} --fusion {svFiles_escaped[index]} > arriba.vcf'
+                            arriba_command = f'python3 ~{megafusionExecutable} --json ~{megafusionArriba} --fusion {svFiles_escaped[index]} > arriba.vcf'
                             subprocess.run(arriba_command, shell=True)
                         if name.lower() == "starfusion":
-                            starfusion_command = f'python3 ~{megafusion_executable} --json ~{megafusion_starfusion} --fusion {svFiles_escaped[index]} > starfusion.vcf'
+                            starfusion_command = f'python3 ~{megafusionExecutable} --json ~{megafusionStarfusion} --fusion {svFiles_escaped[index]} > starfusion.vcf'
                             subprocess.run(starfusion_command, shell=True)
 
                     #Create a copy of the original delly file and increase quality scores to be very high
@@ -254,7 +260,7 @@ task filterDelly {
                                 input_file.write(f'{sv_file}\n')
 
                     #Run survivor     
-                    survivor_command = f'"~{survivor_executable}" merge "survivor_input.txt" 1000 2 0 0 0 1 merged.vcf'
+                    survivor_command = f'"~{survivorExecutable}" merge "survivor_input.txt" 1000 2 0 0 0 1 merged.vcf'
                     result = subprocess.run(survivor_command, shell=True)
                     if result.returncode != 0:
                         raise Exception(f"Error: Survivor command failed with return code {result.returncode}")
@@ -270,7 +276,7 @@ task filterDelly {
                     subprocess.run(bedtools_command, stdout=open('matched_entries.vcf', 'w'))
 
                 #Filter delly for quality
-                subprocess.run(['bcftools', 'view', '-i', 'FILTER="PASS"', '-O', 'z', original_delly, '-o', 'filtered_delly.vcf.gz'])
+                subprocess.run(['bcftools', 'view', '-i', f'FILTER="PASS" & INFO/PE>~{variantSupport}', '-O', 'z', original_delly, '-o', 'filtered_delly.vcf.gz'])
 
                 #Add matched variants that were filtered out, to the filtered delly
                 if os.path.exists('merged.vcf'):
@@ -381,6 +387,8 @@ task generateConfig {
 
 
   command <<<
+
+    set -eu -o pipefail
 
     ## Use python snippet to generate config file
     python3<<CODE 
@@ -534,7 +542,7 @@ task runMavis {
     File configFile
     String outputFileNamePrefix
     String modules
-    Int jobMemory = 96 
+    Int jobMemory = 125
     Int timeout = 72
   }
 
@@ -552,7 +560,7 @@ task runMavis {
 
     set -eu -o pipefail
     
-    snakemake --jobs 40 --configfile=~{configFile} -s /.mounts/labs/gsiprojects/gsi/Investigations/GRD-603.Mavis3/Delly_filtering/Cleaning_Delly_filtering/3Attempt/OCT_011303/Updated_Snakefile/Snakefile
+    snakemake --jobs 40 --configfile=~{configFile} -s $MAVIS_ROOT/bin/Snakefile
 
 
     if [ -f output_dir_full/summary/MAVIS.COMPLETE ]; then
