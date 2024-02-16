@@ -542,8 +542,8 @@ task runMavis {
     File configFile
     String outputFileNamePrefix
     String modules
-    Int jobMemory = 125
-    Int timeout = 72
+    Int jobMemory = 96
+    Int timeout = 24
   }
 
 
