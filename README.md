@@ -31,6 +31,8 @@ Parameter|Value|Description
 #### Optional task parameters:
 Parameter|Value|Default|Description
 ---|---|---|---
+`filterDelly.maxLines`|Int|2000|Maximum number of lines a delly file can have before needing filtering. Default is 2000
+`filterDelly.variantSupport`|Int|10|Paired-end support for structural variants, in pairs. Default is 10
 `filterDelly.jobMemory`|Int|24|Memory allocated for this job
 `filterDelly.timeout`|Int|6|Timeout in hours, needed to override imposed limits
 `generateConfig.drawFusionsOnly`|Boolean?|False|flag for MAVIS visualization control
