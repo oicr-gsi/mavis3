@@ -3,7 +3,7 @@ This section lists command(s) run by MAVIS3 workflow
 
 * Running MAVIS3
 
-```
+<<<
 
     python3<<CODE 
     import subprocess
@@ -112,8 +112,8 @@ This section lists command(s) run by MAVIS3 workflow
                 subprocess.Popen(['gunzip', '-c', svFiles_escaped[index]], stdout=open('~{outputFileNamePrefix}_mavis_delly.vcf', 'w'))
 
     CODE
-  ```
-```
+  >>>
+<<<
 
     ## Use python snippet to generate config file
     python3<<CODE 
@@ -280,4 +280,4 @@ This section lists command(s) run by MAVIS3 workflow
     fi
     echo "MAVIS job finished but THERE ARE NO RESULTS"
     exit 1
->>>
+  >>>
