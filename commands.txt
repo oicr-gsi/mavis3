@@ -280,4 +280,4 @@ This section lists command(s) run by MAVIS3 workflow
     fi
     echo "MAVIS job finished but THERE ARE NO RESULTS"
     exit 1
-  ```
+>>>
