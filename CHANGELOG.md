@@ -1,4 +1,4 @@
-## 1.1.0   - 2023-09-18
+## 1.1.0   - 2024-02-21
  - Add delly filtering task to handle large delly files
 
 ## 1.0.3   - 2023-09-18
