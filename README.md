@@ -31,6 +31,10 @@ Parameter|Value|Description
 #### Optional task parameters:
 Parameter|Value|Default|Description
 ---|---|---|---
+`filterDelly.maxLines`|Int|2000|Maximum number of lines a delly file can have before needing filtering. Default is 2000
+`filterDelly.variantSupport`|Int|10|Paired-end support for structural variants, in pairs. Default is 10
+`filterDelly.jobMemory`|Int|24|Memory allocated for this job
+`filterDelly.timeout`|Int|6|Timeout in hours, needed to override imposed limits
 `generateConfig.drawFusionsOnly`|Boolean?|False|flag for MAVIS visualization control
 `generateConfig.minClustersPerFile`|Int?|100|Determines the way parallel calculations are organized
 `generateConfig.uninformativeFilter`|Boolean?|True|If enabled, only interested in events inside genes, speeds up calculations
@@ -56,10 +60,122 @@ Output | Type | Description
 
 
 ## Commands
- This section lists command(s) run by MAVIS 3 workflow
+ This section lists command(s) run by MAVIS3 workflow
  
- * Running MAVIS 3
+ * Running MAVIS3
+
+ #### Filter large delly files (GRD-744)
  
+ ```
+ 
+     python3<<CODE 
+     import subprocess
+     import os
+     import shlex
+     import gzip
+     
+     #Separate input arrays
+     s = "~{sep=' ' svFiles}"
+     svFiles = s.split()
+     w = "~{sep=' ' workflowNames}"
+     workflowNames = w.split()
+     sl = "~{sep=' ' svLibraryDesigns}"
+     svLibraryDesigns = sl.split()
+ 
+ 
+     svFiles_escaped = [shlex.quote(os.path.abspath(path)) for path in svFiles]
+ 
+     for index, name in enumerate(workflowNames):
+         if name.lower() == "delly":
+             original_delly = DELLY_FILE
+             with gzip.open(original_delly, 'r') as f:
+               lines = sum(1 for line in f)
+ 
+             if lines > 10000:
+                 #Check if other SV callers exist or else survivor can't be run
+                 if len(svFiles) > 1:
+                     #Run megafusion
+                     for index, name in enumerate(workflowNames):
+                         if name.lower() == "arriba":
+                             arriba_command = f'python3 MEGAFUSION_EXECUTABLE --json MEGAFUSION_ARRIBA_CONFIG --fusion ARRIBA_FILE > arriba.vcf'
+                             subprocess.run(arriba_command, shell=True)
+                         if name.lower() == "starfusion":
+                             starfusion_command = f'python3 MEGAFUSION_EXECUTABLE --json MEGAFUSION_STARFUSION_CONFIG --fusion STARFUSION_FILE > starfusion.vcf'
+                             subprocess.run(starfusion_command, shell=True)
+ 
+                     #Create a copy of the original delly file and increase quality scores to be very high
+                     subprocess.run(['cp', original_delly, 'copied_delly.vcf.gz'])
+                     subprocess.run(['gunzip', 'copied_delly.vcf.gz'])
+                     with open('copied_delly.vcf', 'r') as vcf_file:
+                         lines = vcf_file.readlines()
+                     with open('copied_delly.vcf', 'w') as vcf_file:
+                         for line in lines:
+                             if line.startswith('#'):
+                                 vcf_file.write(line)
+                             else:
+                                 fields = line.split('\t')
+                                 fields[5] = '1000'
+                                 vcf_file.write('\t'.join(fields))
+ 
+                     #Create text file with the modified Delly file and other svFiles
+                     input_file_path = 'survivor_input.txt'
+                     with open(input_file_path, 'w') as input_file:
+                         input_file.write(f'copied_delly.vcf\n')
+ 
+                         #Check for the existence of Arriba and Starfusion files
+                         for SV_CALLER in ['arriba', 'starfusion']:
+                             sv_file = f'SV_CALLER.vcf'
+                             if os.path.exists(sv_file):
+                                 input_file.write(f'{sv_file}\n')
+ 
+                         #Add any other SV files that are vcfs (e.g. GRIDSS)
+                         for sv_file in svFiles:
+                             if sv_file.lower().endswith(".vcf"):
+                                 input_file.write(f'{sv_file}\n')
+ 
+                     #Run survivor     
+                     survivor_command = f'"SURVIVOR_EXECUTABLE" merge "survivor_input.txt" 1000 2 0 0 0 1 merged.vcf'
+                     result = subprocess.run(survivor_command, shell=True)
+                     if result.returncode != 0:
+                         raise Exception(f"Error: Survivor command failed with return code {result.returncode}")
+ 
+                     #Look for matching variants from the merged vcf and the original delly file
+                     bedtools_command = [
+                         'bedtools', 'intersect',
+                         '-a', original_delly,
+                         '-b', 'merged.vcf',
+                         '-header', '-wa', '-u',
+                     ]
+ 
+                     subprocess.run(bedtools_command, stdout=open('matched_entries.vcf', 'w'))
+ 
+                 #Filter delly for quality
+                 subprocess.run(['bcftools', 'view', '-i', 'FILTER="PASS"', '-O', 'z', original_delly, '-o', 'filtered_delly.vcf.gz'])
+ 
+                 #Add matched variants that were filtered out, to the filtered delly
+                 if os.path.exists('merged.vcf'):
+                  
+                     bedtools_command2 = [
+                         'bedtools', 'intersect',
+                         '-a', 'matched_entries.vcf',
+                         '-b', 'filtered_delly.vcf.gz',
+                         '-header', '-v',
+                     ]
+ 
+                     subprocess.run(bedtools_command2, stdout=open('variants_not_in_filtered_delly.vcf', 'w'))
+ 
+                     with open('~{outputFileNamePrefix}_mavis_delly.vcf', 'w') as updated_vcf:
+                         subprocess.run(['zcat', 'filtered_delly.vcf.gz'], stdout=updated_vcf)
+                         subprocess.run(['grep', '-v', '^#', 'variants_not_in_filtered_delly.vcf'], stdout=updated_vcf)
+ 
+                 else:
+                     subprocess.Popen(['gunzip', '-c', 'filtered_delly.vcf.gz'], stdout=open('OUTPUT_NAME_mavis_delly.vcf', 'w'))
+ 
+             else:
+                 subprocess.Popen(['gunzip', '-c', svFiles_escaped[index]], stdout=open('OUTPUT_NAME_mavis_delly.vcf', 'w'))
+ 
+     CODE
+   ```
  #### Generate input configuration file for MAVIS 3
  
  ```
@@ -230,7 +346,6 @@ Output | Type | Description
      exit 1
  
    ```
-   
  ## Support
 
 For support, please file an issue on the [Github project](https://github.com/oicr-gsi) or send an email to gsi@oicr.on.ca .

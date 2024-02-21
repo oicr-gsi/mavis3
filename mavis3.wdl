@@ -40,7 +40,13 @@ workflow mavis3 {
 
   String sanitizedSID = sub(outputFileNamePrefix, "_", ".")
 
-  ## Setting modules and reference paths by genome
+  ## Setting modules and reference paths
+  String filterdelly_modules = "megafusion/0.0.1 survivor/1.0.7 bcftools/1.9 bedtools/2.27" 
+  String megafusion_executable = "$MEGAFUSION_ROOT/bin/MegaFusion.py"
+  String megafusion_arriba = "$MEGAFUSION_ROOT/arriba.json"
+  String megafusion_starfusion = "$MEGAFUSION_ROOT/starfusion.json"
+  String survivor_executable = "$SURVIVOR_ROOT/Debug/SURVIVOR"
+  
   Map[String,String] mavis_modules_by_genome = { "hg19": "mavis/3.1.0 hg19-mavis/3.1.0 hg19/p13", "hg38" : "mavis/3.1.0 hg38-mavis/3.1.0 hg38/p12" }
   String mavis_modules = mavis_modules_by_genome [ reference ]
 
@@ -70,11 +76,28 @@ workflow mavis3 {
   }
 
   scatter(s in svData) {
-    String svFiles = "~{s.svFile}"
+    String tempSvFiles = "~{s.svFile}"
     String workflowNames = s.workflowName
     String svLibraryDesigns = s.libraryDesign
   }
 
+  scatter(s in svData) {
+    if (s.workflowName == "delly") {
+      call filterDelly {
+        input:
+          outputFileNamePrefix = sanitizedSID,
+          svFiles = tempSvFiles,
+          workflowNames = workflowNames,
+          svLibraryDesigns = svLibraryDesigns,
+          modules = filterdelly_modules,
+          megafusionExecutable = megafusion_executable,
+          megafusionArriba = megafusion_arriba,
+          megafusionStarfusion = megafusion_starfusion,
+          survivorExecutable = survivor_executable
+      }
+    }    
+    String svFiles = select_first([filterDelly.mavisDelly,"~{s.svFile}"])
+  }
 
   call generateConfig { 
     input: 
@@ -108,7 +131,7 @@ workflow mavis3 {
 
   meta {
     author: "Hannah Driver"
-    email: "hannah.driver@oicr.on.ca"
+    email: "hdriver@oicr.on.ca"
     description: "MAVIS workflow, annotation of structural variants. An application framework for the rapid generation of structural variant consensus, able to visualize the genetic impact and context as well as process both genome and transcriptome data."
     dependencies: [
       {
@@ -133,6 +156,166 @@ workflow mavis3 {
   }
 
 }
+
+task filterDelly {
+  input {
+    String outputFileNamePrefix
+    Array[String] svFiles
+    Array[String] workflowNames
+    Array[String] svLibraryDesigns
+    String modules
+    String megafusionExecutable
+    String megafusionArriba
+    String megafusionStarfusion
+    String survivorExecutable
+    Int maxLines = 2000
+    Int variantSupport = 10
+    Int jobMemory = 24
+    Int timeout = 6
+  }
+
+  parameter_meta {
+    outputFileNamePrefix: "Sample ID, this is provided to mavis and cannot include reserved characters [;,_\\s] "
+    svFiles: "Array of SV calls"
+    workflowNames: "List of workflow names for SV inputs (e.g. delly, starfusion, arriba)"
+    svLibraryDesigns: "List of library designs (e.g. WG, WT)"
+    modules: "Modules needed to filter delly file"
+    megafusionExecutable: "Path to MegaFusion executable"
+    megafusionArriba: "Path to MegaFusion arriba.json file"
+    megafusionStarfusion: "Path to MegaFusion starfusion.json file"
+    survivorExecutable: "Path to SURVIVOR executable"
+    maxLines: "Maximum number of lines a delly file can have before needing filtering. Default is 2000"
+    variantSupport: "Paired-end support for structural variants, in pairs. Default is 10"
+    jobMemory: "Memory allocated for this job"
+    timeout: "Timeout in hours, needed to override imposed limits"
+  }
+
+  command <<<
+
+    #See GRD-744 for breakdown of this task
+
+    set -eu -o pipefail
+
+    python3<<CODE 
+    import subprocess
+    import os
+    import shlex
+    import gzip
+    
+    #Separate input arrays
+    s = "~{sep=' ' svFiles}"
+    svFiles = s.split()
+    w = "~{sep=' ' workflowNames}"
+    workflowNames = w.split()
+    sl = "~{sep=' ' svLibraryDesigns}"
+    svLibraryDesigns = sl.split()
+
+
+    svFiles_escaped = [shlex.quote(os.path.abspath(path)) for path in svFiles]
+
+    for index, name in enumerate(workflowNames):
+        if name.lower() == "delly":
+            original_delly = svFiles_escaped[index]
+            with gzip.open(original_delly, 'r') as f:
+              lines = sum(1 for line in f)
+
+            if lines > ~{maxLines}:
+                #Check if other SV callers exist or else survivor can't be run
+                if len(svFiles) > 1:
+                    #Run megafusion
+                    for index, name in enumerate(workflowNames):
+                        if name.lower() == "arriba":
+                            arriba_command = f'python3 ~{megafusionExecutable} --json ~{megafusionArriba} --fusion {svFiles_escaped[index]} > arriba.vcf'
+                            subprocess.run(arriba_command, shell=True)
+                        if name.lower() == "starfusion":
+                            starfusion_command = f'python3 ~{megafusionExecutable} --json ~{megafusionStarfusion} --fusion {svFiles_escaped[index]} > starfusion.vcf'
+                            subprocess.run(starfusion_command, shell=True)
+
+                    #Create a copy of the original delly file and increase quality scores to be very high
+                    subprocess.run(['cp', original_delly, 'copied_delly.vcf.gz'])
+                    subprocess.run(['gunzip', 'copied_delly.vcf.gz'])
+                    with open('copied_delly.vcf', 'r') as vcf_file:
+                        lines = vcf_file.readlines()
+                    with open('copied_delly.vcf', 'w') as vcf_file:
+                        for line in lines:
+                            if line.startswith('#'):
+                                vcf_file.write(line)
+                            else:
+                                fields = line.split('\t')
+                                fields[5] = '1000'
+                                vcf_file.write('\t'.join(fields))
+
+                    #Create text file with the modified Delly file and other svFiles
+                    input_file_path = 'survivor_input.txt'
+                    with open(input_file_path, 'w') as input_file:
+                        input_file.write(f'copied_delly.vcf\n')
+
+                        #Check for the existence of Arriba and Starfusion files
+                        for name in ['arriba', 'starfusion']:
+                            sv_file = f'{name}.vcf'
+                            if os.path.exists(sv_file):
+                                input_file.write(f'{sv_file}\n')
+
+                        #Add any other SV files that are vcfs (e.g. GRIDSS)
+                        for sv_file in svFiles:
+                            if sv_file.lower().endswith(".vcf"):
+                                input_file.write(f'{sv_file}\n')
+
+                    #Run survivor     
+                    survivor_command = f'"~{survivorExecutable}" merge "survivor_input.txt" 1000 2 0 0 0 1 merged.vcf'
+                    result = subprocess.run(survivor_command, shell=True)
+                    if result.returncode != 0:
+                        raise Exception(f"Error: Survivor command failed with return code {result.returncode}")
+
+                    #Look for matching variants from the merged vcf and the original delly file
+                    bedtools_command = [
+                        'bedtools', 'intersect',
+                        '-a', original_delly,
+                        '-b', 'merged.vcf',
+                        '-header', '-wa', '-u',
+                    ]
+
+                    subprocess.run(bedtools_command, stdout=open('matched_entries.vcf', 'w'))
+
+                #Filter delly for quality
+                subprocess.run(['bcftools', 'view', '-i', f'FILTER="PASS" & INFO/PE>~{variantSupport}', '-O', 'z', original_delly, '-o', 'filtered_delly.vcf.gz'])
+
+                #Add matched variants that were filtered out, to the filtered delly
+                if os.path.exists('merged.vcf'):
+                 
+                    bedtools_command2 = [
+                        'bedtools', 'intersect',
+                        '-a', 'matched_entries.vcf',
+                        '-b', 'filtered_delly.vcf.gz',
+                        '-header', '-v',
+                    ]
+
+                    subprocess.run(bedtools_command2, stdout=open('variants_not_in_filtered_delly.vcf', 'w'))
+
+                    with open('~{outputFileNamePrefix}_mavis_delly.vcf', 'w') as updated_vcf:
+                        subprocess.run(['zcat', 'filtered_delly.vcf.gz'], stdout=updated_vcf)
+                        subprocess.run(['grep', '-v', '^#', 'variants_not_in_filtered_delly.vcf'], stdout=updated_vcf)
+
+                else:
+                    subprocess.Popen(['gunzip', '-c', 'filtered_delly.vcf.gz'], stdout=open('~{outputFileNamePrefix}_mavis_delly.vcf', 'w'))
+
+            else:
+                subprocess.Popen(['gunzip', '-c', svFiles_escaped[index]], stdout=open('~{outputFileNamePrefix}_mavis_delly.vcf', 'w'))
+
+    CODE
+  >>>
+
+  runtime {
+    memory:  "~{jobMemory} GB"
+    modules: "~{modules}"
+    timeout: "~{timeout}"
+  }
+
+  output {
+    File mavisDelly = '~{outputFileNamePrefix}_mavis_delly.vcf'
+  }
+}
+
 
 task generateConfig {
   input {
@@ -206,6 +389,8 @@ task generateConfig {
 
 
   command <<<
+
+    set -eu -o pipefail
 
     ## Use python snippet to generate config file
     python3<<CODE 
@@ -313,9 +498,7 @@ task generateConfig {
             if bamLibraryDesigns[index] == "WG":
                 if "WG." + "~{outputFileNamePrefix}" not in jsonDict["libraries"]: 
                     jsonDict["libraries"]["WG." + "~{outputFileNamePrefix}"] = {
-                        "assign": [
-                            "delly"
-                        ],
+                        "assign": [],
                         "bam_file": bams[index],
                         "disease_status": "~{diseaseStatus}",
                         "protocol": "genome"
@@ -331,6 +514,8 @@ task generateConfig {
                     }
 
         for name in workflowNames:
+            if name.lower() == "delly":
+                jsonDict["libraries"]["WG." + "~{outputFileNamePrefix}"]["assign"].append("delly")        
             if name.lower() == "starfusion":
                 jsonDict["libraries"]["WT." + "~{outputFileNamePrefix}"]["assign"].append("starfusion")
             if name.lower() == "arriba":
@@ -359,7 +544,7 @@ task runMavis {
     File configFile
     String outputFileNamePrefix
     String modules
-    Int jobMemory = 36 
+    Int jobMemory = 96
     Int timeout = 24
   }
 
@@ -374,8 +559,10 @@ task runMavis {
 
 
   command <<<
+
+    set -eu -o pipefail
     
-    snakemake --jobs 100 --configfile=~{configFile} -s $MAVIS_ROOT/bin/Snakefile
+    snakemake --jobs 40 --configfile=~{configFile} -s $MAVIS_ROOT/bin/Snakefile
 
 
     if [ -f output_dir_full/summary/MAVIS.COMPLETE ]; then

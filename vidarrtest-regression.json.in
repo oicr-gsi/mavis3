@@ -44,7 +44,20 @@
                     },
                     "libraryDesign": "WT"
                 }
-            ], 
+            ],
+            "mavis3.filterDelly.outputFileNamePrefix": null,
+            "mavis3.filterDelly.svFiles": null,
+            "mavis3.filterDelly.workflowNames": null,
+            "mavis3.filterDelly.svLibraryDesigns": null,
+            "mavis3.filterDelly.modules": null,
+            "mavis3.filterDelly.megafusionExecutable": null,
+            "mavis3.filterDelly.megafusionArriba": null,
+            "mavis3.filterDelly.megafusionStarfusion": null,
+            "mavis3.filterDelly.survivorExecutable": null,
+            "mavis3.filterDelly.maxLines": null,
+            "mavis3.filterDelly.variantSupport": null,
+            "mavis3.filterDelly.jobMemory": null,
+            "mavis3.filterDelly.timeout": null,
             "mavis3.generateConfig.outputFileNamePrefix": null,
             "mavis3.generateConfig.diseaseStatus": null,
             "mavis3.generateConfig.alignerReference": null,
@@ -120,7 +133,7 @@
             {
                 "metrics_calculate": "@CHECKOUT@/tests/calculate.sh",
                 "metrics_compare": "@CHECKOUT@/tests/compare.sh",
-                "output_metrics": "/.mounts/labs/gsi/testdata/mavis3/EPT0068_CHR11_DOWNSAMPLED/output_expectation/metrics/EPT0068_CHR11_DOWNSAMPLED.metrics.txt",
+                "output_metrics": "/.mounts/labs/gsi/testdata/mavis3/1.1.0/output_metrics/EPT0068_CHR11_DOWNSAMPLED.metrics.txt",
                 "type": "script"
             }
         ]
