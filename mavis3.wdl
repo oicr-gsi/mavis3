@@ -192,6 +192,8 @@ task filterDelly {
 
   command <<<
 
+    #See GRD-744 for breakdown of this task
+
     set -eu -o pipefail
 
     python3<<CODE 
