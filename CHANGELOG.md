@@ -1,3 +1,6 @@
+## 1.2.0   - 2024-04-09
+- Add GRIDSS as an allowable SV input
+
 ## 1.1.0   - 2024-02-21
  - Add delly filtering task to handle large delly files
 
