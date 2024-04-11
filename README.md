@@ -257,6 +257,16 @@ Output | Type | Description
                          ]
                      }
                  }
+             if name.lower() == "gridss":
+                 jsonDict["convert"] = {
+                     "gridss": {
+                         "assume_no_untemplated": True,
+                         "file_type": "gridss",
+                         "inputs": [
+                             GRIDSS_FILE_PATH
+                         ]
+                     }
+                 }
              if name.lower() == "starfusion":
                  jsonDict["convert"] = {
                      "starfusion": {
@@ -283,9 +293,7 @@ Output | Type | Description
              if bamLibraryDesigns[index] == "WG":
                  jsonDict["libraries"] = {
                      "WG." + OUTPUT_FILE_NAME_PREFIX: {
-                         "assign": [
-                             "delly"
-                         ],
+                         "assign": [],
                          "bam_file": BAM_FILE_PATH,
                          "disease_status": DISEASE_STATUS,
                          "protocol": "genome"
@@ -303,6 +311,10 @@ Output | Type | Description
                  }
  
          for name in workflowNames:
+             if name.lower() == "delly":
+                 jsonDict["libraries"]["WG." + OUTPUT_FILE_NAME_PREFIX]["assign"].append("delly")
+             if name.lower() == "gridss":
+                 jsonDict["libraries"]["WG." + OUTPUT_FILE_NAME_PREFIX]["assign"].append("gridss")
              if name.lower() == "starfusion":
                  jsonDict["libraries"]["WT." + OUTPUT_FILE_NAME_PREFIX]["assign"].append("starfusion")
              if name.lower() == "arriba":

@@ -474,6 +474,16 @@ task generateConfig {
                         ]
                     }
 
+            if name.lower() == "gridss":
+                if "gridss" not in jsonDict["convert"]:
+                    jsonDict["convert"]["gridss"] = {
+                        "assume_no_untemplated": True,
+                        "file_type": "vcf",
+                        "inputs": [
+                            str(svFiles[index])
+                        ]
+                    }
+
             if name.lower() == "starfusion":
                 if "starfusion" not in jsonDict["convert"]:
                     jsonDict["convert"]["starfusion"] = {
@@ -515,7 +525,9 @@ task generateConfig {
 
         for name in workflowNames:
             if name.lower() == "delly":
-                jsonDict["libraries"]["WG." + "~{outputFileNamePrefix}"]["assign"].append("delly")        
+                jsonDict["libraries"]["WG." + "~{outputFileNamePrefix}"]["assign"].append("delly")
+            if name.lower() == "gridss":
+                jsonDict["libraries"]["WG." + "~{outputFileNamePrefix}"]["assign"].append("gridss")        
             if name.lower() == "starfusion":
                 jsonDict["libraries"]["WT." + "~{outputFileNamePrefix}"]["assign"].append("starfusion")
             if name.lower() == "arriba":
