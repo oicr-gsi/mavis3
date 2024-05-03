@@ -329,7 +329,13 @@ Output | Type | Description
 
  ```
      
-     snakemake --jobs 100 --configfile=CONFIG_FILE -s Snakefile
+     snakemake --jobs 40 --configfile=CONFIG_FILE -s Snakefile &
+     wait
+
+     if [ ! -f CONFIG_FILE ]; then
+       sed -i 's/bin_size": 1000/bin_size": MAX_BINS/' CONFIG_FILE
+       snakemake --jobs 40 --configfile= CONFIG_FILE -s Snakefile
+     fi
  
  
      if [ -f OUTPUT_DIRECTORY/summary/MAVIS.COMPLETE ]; then
