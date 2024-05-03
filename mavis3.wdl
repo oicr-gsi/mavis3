@@ -435,6 +435,7 @@ task generateConfig {
             "annotate.draw_fusions_only": drawFusionsOnlyPython,
             "cluster.min_clusters_per_file": ~{minClustersActual},
             "cluster.uninformative_filter": uninformativeFilterPython,
+            "bam_stats.sample_bin_size": 1000,
             "summary.filter_min_flanking_reads": ~{filterMinFlankingActual},
             "summary.filter_min_linking_split_reads": ~{filterMinLinkingActual},
             "summary.filter_min_remapped_reads": ~{filterMinRemappedActual},
@@ -556,7 +557,8 @@ task runMavis {
     File configFile
     String outputFileNamePrefix
     String modules
-    Int jobMemory = 96
+    Int maxBins = 100000
+    Int jobMemory = 120
     Int timeout = 24
   }
 
@@ -565,6 +567,7 @@ task runMavis {
     configFile: ".json configuration file for mavis"
     outputFileNamePrefix: "sample ID, this is provided to maivs and cannot include reseerved characters [;,_\\s] "
     modules: "modules needed to run MAVIS"
+    maxBins: "Maximum value for the sample_bin_size parameter if the config fails to build, Default is 100000"
     jobMemory: "Memory allocated for this job"
     timeout: "Timeout in hours, needed to override imposed limits"
   }
@@ -574,7 +577,14 @@ task runMavis {
 
     set -eu -o pipefail
     
-    snakemake --jobs 40 --configfile=~{configFile} -s $MAVIS_ROOT/bin/Snakefile
+    snakemake --jobs 40 --configfile=~{configFile} -s $MAVIS_ROOT/bin/Snakefile &
+    wait
+
+
+    if [ ! -f output_dir/config.json ]; then
+      sed -i 's/bin_size": 1000/bin_size": ~{maxBins}/' ~{configFile}
+      snakemake --jobs 40 --configfile=~{configFile} -s $MAVIS_ROOT/bin/Snakefile
+    fi
 
 
     if [ -f output_dir_full/summary/MAVIS.COMPLETE ]; then
