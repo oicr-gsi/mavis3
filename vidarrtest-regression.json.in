@@ -86,6 +86,7 @@
             "mavis3.runMavis.configFile": null,
             "mavis3.runMavis.outputFileNamePrefix": null,
             "mavis3.runMavis.modules": null,
+            "mavis3.runMavis.maxBins": null,
             "mavis3.runMavis.jobMemory": null,
             "mavis3.runMavis.timeout": null
         },
