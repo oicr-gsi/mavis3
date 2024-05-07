@@ -1,3 +1,6 @@
+## 1.3.0   - 2024-05-03
+- Add conditional logic to re-attempt mavis with adjusted sample_bin_size if the config is not successfully generated
+
 ## 1.2.0   - 2024-04-09
 - Add GRIDSS as an allowable SV input
 
