@@ -45,18 +45,19 @@ Parameter|Value|Default|Description
 `generateConfig.filterTransHomopolymers`|Boolean?|False|When enabled, transcript sequences containing homopolymer regions are removed
 `generateConfig.jobMemory`|Int|6|Memory allocated for this job
 `generateConfig.timeout`|Int|6|Timeout in hours, needed to override imposed limits
+`runMavis.maxBins`|Int|100000|Maximum value for the sample_bin_size parameter if the config fails to build, Default is 100000
 `runMavis.jobMemory`|Int|120|Memory allocated for this job
 `runMavis.timeout`|Int|24|Timeout in hours, needed to override imposed limits
 
 
 ### Outputs
 
-Output | Type | Description
----|---|---
-`summary`|File|File with copy number variants, native varscan format
-`drawings`|File|Plots generated with MAVIS, collected into a single tar.gz archive
-`nscvWT`|File?|Whole transcriptome non-synonymous coding variants. The output file is only generated if variants are found
-`nscvWG`|File?|Whole genome non-synonymous coding variants. The output file is only generated if variants are found
+Output | Type | Description | Labels
+---|---|---|---
+`summary`|File|File with copy number variants, native varscan format|vidarr_label: summary
+`drawings`|File|Plots generated with MAVIS, collected into a single tar.gz archive|vidarr_label: drawings
+`nscvWT`|File?|Whole transcriptome non-synonymous coding variants. The output file is only generated if variants are found|vidarr_label: nscvWT
+`nscvWG`|File?|Whole genome non-synonymous coding variants. The output file is only generated if variants are found|vidarr_label: nscvWG
 
 
 ## Commands

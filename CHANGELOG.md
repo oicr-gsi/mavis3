@@ -1,3 +1,5 @@
+## 1.4.0 - 2024-06-25
+[GRD-797](https://jira.oicr.on.ca/browse/GRD-797) - add vidarr labels to outputs (changes to medata only)
 ## 1.3.0   - 2024-05-03
 - Add conditional logic to re-attempt mavis with adjusted sample_bin_size if the config is not successfully generated
 
