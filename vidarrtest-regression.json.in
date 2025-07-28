@@ -15,7 +15,7 @@
                     "libraryDesign": "WT",
                     "svFile": {
                         "contents": {
-                            "configuration": "/.mounts/labs/gsi/testdata/mavis/test_inputs/EPT_Test.star-fusion.fusion_predictions.abridged_chr11.tsv",
+                            "configuration": "/.mounts/labs/gsi/testdata/mavis3/test_inputs/EPT_Test.star-fusion.fusion_predictions.abridged_chr11.tsv",
                             "externalIds": [
                                 {
                                     "id": "TEST",
@@ -32,7 +32,7 @@
                 {
                     "bam": {
                         "contents": {
-                            "configuration": "/.mounts/labs/gsi/testdata/mavis/test_inputs/EPT_Test.Aligned.sortedByCoord.out_chr11.bam",
+                            "configuration": "/.mounts/labs/gsi/testdata/mavis3/test_inputs/EPT_Test.Aligned.sortedByCoord.out_chr11.bam",
                             "externalIds": [
                                 {
                                     "id": "TEST",
