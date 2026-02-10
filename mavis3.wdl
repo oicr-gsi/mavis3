@@ -47,7 +47,7 @@ workflow mavis3 {
   String megafusion_starfusion = "$MEGAFUSION_ROOT/starfusion.json"
   String survivor_executable = "$SURVIVOR_ROOT/Debug/SURVIVOR"
   
-  Map[String,String] mavis_modules_by_genome = { "hg19": "mavis/3.1.0 hg19-mavis/3.1.0 hg19/p13", "hg38" : "mavis/3.1.0 hg38v110-mavis/3.1.0 hg38/p12" }
+  Map[String,String] mavis_modules_by_genome = { "hg19": "mavis/3.1.0 hg19-mavis/3.1.0 hg19/p13", "hg38" : "mavis/3.1.0 hg38v110-mavis/3.1.0 hg38/p12"}
   String mavis_modules = mavis_modules_by_genome [ reference ]
 
   Map[String,mavisResources] resources = {
@@ -415,7 +415,7 @@ task generateConfig {
         mavisRoot = str(os.environ['HG19_MAVIS_ROOT'])
     elif "~{reference}" == "hg38":
         root =  str(os.environ['HG38_ROOT'])
-        mavisRoot = str(os.environ['HG38_MAVIS_ROOT'])
+        mavisRoot = str(os.environ['HG38V110_MAVIS_ROOT'])
 
     #Convert WDL booleans to python booleans
     drawFusionsOnlyPython = eval("~{drawFusionsActual}".title())
