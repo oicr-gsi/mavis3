@@ -4,11 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.4.0] - 2024-05-03
+## [1.4.0] - 2026-02-11
 ### Change
-- Update mavis ensembl json file to Ensembl 110
+- [GRD-931] (https://jira.oicr.on.ca/browse/GRD-931) - Update mavis ensembl json file to Ensembl v110
 
 ## [Unreleased] - 2024-06-25
+### Added
 - [GRD-797](https://jira.oicr.on.ca/browse/GRD-797) - add vidarr labels to outputs (changes to medata only)
 
 ## [1.3.0] - 2024-05-03
