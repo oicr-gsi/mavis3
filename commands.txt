@@ -133,7 +133,7 @@ This section lists command(s) run by mavis3 workflow
         mavisRoot = str(os.environ['HG19_MAVIS_ROOT'])
     elif "~{reference}" == "hg38":
         root =  str(os.environ['HG38_ROOT'])
-        mavisRoot = str(os.environ['HG38_MAVIS_ROOT'])
+        mavisRoot = str(os.environ['HG38V110_MAVIS_ROOT'])
 
     #Convert WDL booleans to python booleans
     drawFusionsOnlyPython = eval("~{drawFusionsActual}".title())
