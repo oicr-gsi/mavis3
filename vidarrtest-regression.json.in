@@ -7,7 +7,7 @@
             "mavis3.masking": null,
             "mavis3.referenceGenome": null,
             "mavis3.templateMetadata": null,
-            "mavis3.outputFileNamePrefix": "EPT0068",
+            "mavis3.outputFileNamePrefix": "EPT_Test01",
             "mavis3.reference": "hg19",
             "mavis3.diseaseStatus": "diseased",
             "mavis3.svData": [
@@ -15,7 +15,7 @@
                     "libraryDesign": "WT",
                     "svFile": {
                         "contents": {
-                            "configuration": "/.mounts/labs/gsi/testdata/mavis/EPT0068_CHR11_DOWNSAMPLED/input_data/EPT0068_180821_NB551051_0067_AHTC7YBGX5_CTGAAGCT-AGGCTATA_L001.star-fusion.fusion_predictions.abridged_chr11.tsv",
+                            "configuration": "/.mounts/labs/gsi/testdata/mavis3/test_inputs/EPT_Test.star-fusion.fusion_predictions.abridged_chr11.tsv",
                             "externalIds": [
                                 {
                                     "id": "TEST",
@@ -32,7 +32,7 @@
                 {
                     "bam": {
                         "contents": {
-                            "configuration": "/.mounts/labs/gsi/testdata/mavis/EPT0068_CHR11_DOWNSAMPLED/input_data/EPT0068_180821_NB551051_0067_AHTC7YBGX5_CTGAAGCT-AGGCTATA_L001.Aligned.sortedByCoord.out_chr11.bam",
+                            "configuration": "/.mounts/labs/gsi/testdata/mavis3/test_inputs/EPT_Test.Aligned.sortedByCoord.out_chr11.bam",
                             "externalIds": [
                                 {
                                     "id": "TEST",
@@ -95,12 +95,12 @@
            "write_to_cache": false,
            "read_from_cache": false
         },
-        "id": "EPT0068_CHR11_DOWNSAMPLED",
+        "id": "Test",
         "metadata": {
             "mavis3.summary": {
                 "contents": [
                     {
-                        "outputDirectory": "@SCRATCH@/@DATE@_Workflow_mavis3_EPT0068_CHR11_DOWNSAMPLED_@JENKINSID@"
+                        "outputDirectory": "@SCRATCH@/@DATE@_Workflow_mavis3_Test_@JENKINSID@"
                     }
                 ],
                 "type": "ALL"
@@ -108,7 +108,7 @@
             "mavis3.drawings": {
                 "contents": [
                     {
-                        "outputDirectory": "@SCRATCH@/@DATE@_Workflow_mavis3_EPT0068_CHR11_DOWNSAMPLED_@JENKINSID@"
+                        "outputDirectory": "@SCRATCH@/@DATE@_Workflow_mavis3_Test_@JENKINSID@"
                     }
                 ],
                 "type": "ALL"
@@ -116,7 +116,7 @@
             "mavis3.nscvWT": {
                 "contents": [
                     {
-                        "outputDirectory": "@SCRATCH@/@DATE@_Workflow_mavis3_EPT0068_CHR11_DOWNSAMPLED_@JENKINSID@"
+                        "outputDirectory": "@SCRATCH@/@DATE@_Workflow_mavis3_Test_@JENKINSID@"
                     }
                 ],
                 "type": "ALL"
@@ -124,7 +124,7 @@
             "mavis3.nscvWG": {
                 "contents": [
                     {
-                        "outputDirectory": "@SCRATCH@/@DATE@_Workflow_mavis3_EPT0068_CHR11_DOWNSAMPLED_@JENKINSID@"
+                        "outputDirectory": "@SCRATCH@/@DATE@_Workflow_mavis3_Test_@JENKINSID@"
                     }
                 ],
                 "type": "ALL"
@@ -134,7 +134,7 @@
             {
                 "metrics_calculate": "@CHECKOUT@/tests/calculate.sh",
                 "metrics_compare": "@CHECKOUT@/tests/compare.sh",
-                "output_metrics": "/.mounts/labs/gsi/testdata/mavis3/1.4.0/output_metrics/EPT0068_CHR11_DOWNSAMPLED.metrics.txt",
+                "output_metrics": "/.mounts/labs/gsi/testdata/mavis3/output_metrics/workflow_test_01.metrics",
                 "type": "script"
             }
         ]
