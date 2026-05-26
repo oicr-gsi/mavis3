@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Change
 - Updated MAVIS from 3.1.0 to 3.1.2
 
+### Added
+- Added option for reference genome hg38_noAlt
+
 ## [1.4.1] - 2026-02-11
 ### Change
 - Updated hg38 annotation file path to ensembl v110 (HG38V110_MAVIS_ROOT)
