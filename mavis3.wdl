@@ -47,7 +47,7 @@ workflow mavis3 {
   String megafusion_starfusion = "$MEGAFUSION_ROOT/starfusion.json"
   String survivor_executable = "$SURVIVOR_ROOT/Debug/SURVIVOR"
   
-  Map[String,String] mavis_modules_by_genome = { "hg19": "mavis/3.1.0 hg19-mavis/3.1.0 hg19/p13", "hg38" : "mavis/3.1.0 hg38v110-mavis/3.1.0 hg38/p12"}
+  Map[String,String] mavis_modules_by_genome = { "hg19": "mavis/3.1.2 hg19-mavis/3.1.0 hg19/p13", "hg38" : "mavis/3.1.2 hg38v110-mavis/3.1.0 hg38/p12", "hg38_noAlt" : "mavis/3.1.2 hg38v110-mavis/3.1.0 hg38-noalt/p12"}
   String mavis_modules = mavis_modules_by_genome [ reference ]
 
   Map[String,mavisResources] resources = {
