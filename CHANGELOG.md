@@ -6,7 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.5.1] - 2026-06-03
 ### Change
-- Regression directory updated to new tag
+- Regression directory updated with new tag
+- Regression: exclude non-deterministic columns from md5 checksums in calculate.sh to match mavis 3.1.2 columns output.
 
 ## [1.5.0] - 2026-05-25
 ### Change
