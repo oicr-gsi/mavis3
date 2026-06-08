@@ -66,6 +66,14 @@ workflow mavis3 {
       "masking": "/hg38_masking.tab",
       "referenceGenome": "/hg38_random.fa",
       "templateMetadata": "/cytoBand.txt"
+    },
+    "hg38_noAlt": {
+      "alignerReference": "/hg38.2bit",
+      "annotations": "/ensembl_v110_hg38_annotations.json",
+      "dgvAnnotation": "/dgv_hg38_variants.tab",
+      "masking": "/hg38_masking.tab",
+      "referenceGenome": "/hg38_noAlt.fa",
+      "templateMetadata": "/cytoBand.txt"
     }
   }
 
