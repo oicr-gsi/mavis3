@@ -11,6 +11,6 @@ find . -name "*.WT_non-synonymous_coding_variants.tab" | xargs cut -f 2,3,6,7,8,
 
 find .  -name "*\.zip" -exec unzip -q {} \; >/dev/null # unzip the results files
 echo ".json files:"
-find . -name "*\.json" | xargs md5sum | cut -f 1 -d " " | sort
+find . -name "*\.json" ! -name "*_NA*" | xargs md5sum | cut -f 1 -d " " | sort
 echo ".svg files:"
-find . -name "*\.svg" | xargs md5sum | cut -f 1 -d " " | sort
+find . -name "*\.svg" ! -name "*_NA*" | xargs md5sum | cut -f 1 -d " " | sort
