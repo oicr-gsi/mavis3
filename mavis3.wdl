@@ -41,12 +41,12 @@ workflow mavis3 {
   String sanitizedSID = sub(outputFileNamePrefix, "_", ".")
 
   ## Setting modules and reference paths
-  String filterdelly_modules = "megafusion/0.0.1 survivor/1.0.7 bcftools/1.9 bedtools/2.27" 
+  String filterdelly_modules = "megafusion/0.0.1 survivor/1.0.7 bcftools/1.9 bedtools/2.27"
   String megafusion_executable = "$MEGAFUSION_ROOT/bin/MegaFusion.py"
   String megafusion_arriba = "$MEGAFUSION_ROOT/arriba.json"
   String megafusion_starfusion = "$MEGAFUSION_ROOT/starfusion.json"
   String survivor_executable = "$SURVIVOR_ROOT/Debug/SURVIVOR"
-  
+
   Map[String,String] mavis_modules_by_genome = { "hg19": "mavis/3.1.2 hg19-mavis/3.1.0 hg19/p13", "hg38" : "mavis/3.1.2 hg38v110-mavis/3.1.0 hg38/p12", "hg38_noAlt" : "mavis/3.1.2 hg38v110-mavis/3.1.0 hg38-noalt/p12"}
   String mavis_modules = mavis_modules_by_genome [ reference ]
 
@@ -103,19 +103,19 @@ workflow mavis3 {
           megafusionStarfusion = megafusion_starfusion,
           survivorExecutable = survivor_executable
       }
-    }    
+    }
     String svFiles = select_first([filterDelly.mavisDelly,"~{s.svFile}"])
   }
 
-  call generateConfig { 
-    input: 
-      outputFileNamePrefix=sanitizedSID, 
-      diseaseStatus=diseaseStatus, 
-      alignerReference=resources[reference].alignerReference, 
-      annotations=resources[reference].annotations, 
-      dgvAnnotation=resources[reference].dgvAnnotation, 
-      masking=resources[reference].masking, 
-      referenceGenome=resources[reference].referenceGenome, 
+  call generateConfig {
+    input:
+      outputFileNamePrefix=sanitizedSID,
+      diseaseStatus=diseaseStatus,
+      alignerReference=resources[reference].alignerReference,
+      annotations=resources[reference].annotations,
+      dgvAnnotation=resources[reference].dgvAnnotation,
+      masking=resources[reference].masking,
+      referenceGenome=resources[reference].referenceGenome,
       templateMetadata=resources[reference].templateMetadata,
       reference=reference,
       modules=mavis_modules,
@@ -126,24 +126,75 @@ workflow mavis3 {
       svLibraryDesigns=svLibraryDesigns
   }
 
-  ## Feed output of generateConfig to input of runMavis
-  File mavisConfig = generateConfig.jsonFile
+  ## The MAVIS stages below replace the upstream Snakefile: Cromwell owns the dependency
+  ## graph so that every stage is tracked, retried and sized independently.
+  call setup {
+    input:
+      configFile = generateConfig.jsonFile,
+      modules = mavis_modules
+  }
 
-  call runMavis { 
-    input: 
-      configFile = mavisConfig,
+  Array[String] convertAliases = read_lines(setup.aliasList)
+  Array[String] libraries = read_lines(setup.libraryList)
+
+  scatter(converterAlias in convertAliases) {
+    call convert {
+      input:
+        configFile = setup.initializedConfig,
+        converterAlias = converterAlias,
+        modules = mavis_modules
+    }
+  }
+
+  scatter(library in libraries) {
+    call cluster {
+      input:
+        configFile = setup.initializedConfig,
+        library = library,
+        convertedFiles = convert.converted,
+        modules = mavis_modules
+    }
+
+    ## total_batches, set in setup, tells cluster how many batch files to write; the scatter
+    ## width is taken from the files it actually produced.
+    scatter(batchFile in cluster.batches) {
+      call validateAndAnnotate {
+        input:
+          configFile = setup.initializedConfig,
+          library = library,
+          batchFile = batchFile,
+          modules = mavis_modules
+      }
+    }
+
+    Array[File] libraryAnnotations = validateAndAnnotate.annotations
+    Array[Array[File]] libraryDrawings = validateAndAnnotate.drawings
+  }
+
+  call pairing {
+    input:
+      configFile = setup.initializedConfig,
+      annotations = flatten(libraryAnnotations),
+      modules = mavis_modules
+  }
+
+  call mavisSummary {
+    input:
+      configFile = setup.initializedConfig,
+      pairedFile = pairing.paired,
+      drawingFiles = flatten(flatten(libraryDrawings)),
       outputFileNamePrefix = sanitizedSID,
       modules = mavis_modules
   }
 
 
   meta {
-    author: "Hannah Driver"
-    email: "hdriver@oicr.on.ca"
+    author: "Hannah Driver and Gavin Peng"
+    email: "hdriver@oicr.on.ca and gpeng@oicr.on.ca"
     description: "MAVIS workflow, annotation of structural variants. An application framework for the rapid generation of structural variant consensus, able to visualize the genetic impact and context as well as process both genome and transcriptome data."
     dependencies: [
       {
-        name: "mavis/3.1.0",
+        name: "mavis/3.1.2",
         url: "http://mavis.bcgsc.ca/"
       }
     ]
@@ -169,10 +220,10 @@ workflow mavis3 {
 
 
   output {
-    File summary = runMavis.summary
-    File drawings = runMavis.drawings
-    File? nscvWT   = runMavis.nscvWT
-    File? nscvWG   = runMavis.nscvWG
+    File summary = mavisSummary.summaryFile
+    File drawings = mavisSummary.drawings
+    File? nscvWT   = mavisSummary.nscvWT
+    File? nscvWG   = mavisSummary.nscvWG
   }
 
 }
@@ -216,12 +267,12 @@ task filterDelly {
 
     set -eu -o pipefail
 
-    python3<<CODE 
+    python3<<CODE
     import subprocess
     import os
     import shlex
     import gzip
-    
+
     #Separate input arrays
     s = "~{sep=' ' svFiles}"
     svFiles = s.split()
@@ -281,7 +332,7 @@ task filterDelly {
                             if sv_file.lower().endswith(".vcf"):
                                 input_file.write(f'{sv_file}\n')
 
-                    #Run survivor     
+                    #Run survivor
                     survivor_command = f'"~{survivorExecutable}" merge "survivor_input.txt" 1000 2 0 0 0 1 merged.vcf'
                     result = subprocess.run(survivor_command, shell=True)
                     if result.returncode != 0:
@@ -302,7 +353,7 @@ task filterDelly {
 
                 #Add matched variants that were filtered out, to the filtered delly
                 if os.path.exists('merged.vcf'):
-                 
+
                     bedtools_command2 = [
                         'bedtools', 'intersect',
                         '-a', 'matched_entries.vcf',
@@ -383,7 +434,7 @@ task generateConfig {
     svFiles: "Array of SV calls"
     workflowNames: "List of workflow names for SV iputs (e.g. delly, starfusion, arriba)"
     svLibraryDesigns: "List of library designs (e.g. WG, WT)"
-    drawFusionsOnly: "flag for MAVIS visualization control" 
+    drawFusionsOnly: "flag for MAVIS visualization control"
     minClustersPerFile: "Determines the way parallel calculations are organized"
     uninformativeFilter: "If enabled, only interested in events inside genes, speeds up calculations"
     filterMinFlankingReads: "Minimum number of flanking pairs for a call by flanking pairs"
@@ -413,7 +464,7 @@ task generateConfig {
     set -eu -o pipefail
 
     ## Use python snippet to generate config file
-    python3<<CODE 
+    python3<<CODE
     import json
     import os
 
@@ -446,7 +497,7 @@ task generateConfig {
     if ("WG" in bamLibraryDesigns and "WG" in svLibraryDesigns) or ("WT" in bamLibraryDesigns and "WT" in svLibraryDesigns):
         inputs = True
 
-    if inputs != True:   
+    if inputs != True:
         print("Missing inputs for whole genome and whole transcriptome analyses. Please ensure complete inputs are "
               "supplied for at least one of these analyses.")
 
@@ -524,10 +575,10 @@ task generateConfig {
                             str(svFiles[index])
                         ]
                     }
-  
+
         for index, bam in enumerate(bams):
             if bamLibraryDesigns[index] == "WG":
-                if "WG." + "~{outputFileNamePrefix}" not in jsonDict["libraries"]: 
+                if "WG." + "~{outputFileNamePrefix}" not in jsonDict["libraries"]:
                     jsonDict["libraries"]["WG." + "~{outputFileNamePrefix}"] = {
                         "assign": [],
                         "bam_file": bams[index],
@@ -548,7 +599,7 @@ task generateConfig {
             if name.lower() == "delly":
                 jsonDict["libraries"]["WG." + "~{outputFileNamePrefix}"]["assign"].append("delly")
             if name.lower() == "gridss":
-                jsonDict["libraries"]["WG." + "~{outputFileNamePrefix}"]["assign"].append("gridss")        
+                jsonDict["libraries"]["WG." + "~{outputFileNamePrefix}"]["assign"].append("gridss")
             if name.lower() == "starfusion":
                 jsonDict["libraries"]["WT." + "~{outputFileNamePrefix}"]["assign"].append("starfusion")
             if name.lower() == "arriba":
@@ -572,79 +623,485 @@ task generateConfig {
 }
 
 
-task runMavis {
+# ===================================
+#  MAVIS STAGES
+#
+#  One task per stage, transcribed from the MAVIS v3.1.2 Snakefile, which is no longer
+#  executed: Cromwell owns the dependency graph so that each stage is tracked and sized
+#  individually. A MAVIS upgrade will likely need changes here - stage order, subcommand
+#  flags, which stages create their own --output directory, and config keys mavis setup
+#  does not write. Most of that is not visible in the Snakefile, so the regression test is
+#  the gate.
+#
+#  The mavis module ships only a snakemake entrypoint, so the subcommands are invoked
+#  through singularity directly, with the same bind mounts the module's own wrapper uses.
+# ===================================
+
+task setup {
   input {
     File configFile
-    String outputFileNamePrefix
     String modules
+    String containerCommand = "singularity exec -B /.mounts/ -B /scratch3/ $MAVIS_ROOT/bin/mavis.sif"
+    String singularityTmpDir = "/tmp"
     Int maxBins = 100000
-    Int jobMemory = 120
-    Int timeout = 24
+    Int jobMemory = 16
+    Int cores = 1
+    Int timeout = 12
   }
 
-
   parameter_meta {
-    configFile: ".json configuration file for mavis"
-    outputFileNamePrefix: "sample ID, this is provided to maivs and cannot include reseerved characters [;,_\\s] "
-    modules: "modules needed to run MAVIS"
+    configFile: ".json configuration file for mavis, as written by generateConfig"
+    modules: "Modules needed to run MAVIS"
+    containerCommand: "Command used to enter the mavis container. The mavis module ships only a snakemake wrapper, so mavis and its bundled python helpers are invoked through singularity directly"
+    singularityTmpDir: "Directory singularity extracts the image into. Must be node-local, an NFS-backed default costs minutes per task"
     maxBins: "Maximum value for the sample_bin_size parameter if the config fails to build, Default is 100000"
     jobMemory: "Memory allocated for this job"
+    cores: "Number of cores allocated for this job"
     timeout: "Timeout in hours, needed to override imposed limits"
   }
 
-
   command <<<
 
-    set -eu -o pipefail
-    
-    snakemake --jobs 40 --configfile=~{configFile} -s $MAVIS_ROOT/bin/Snakefile &
-    wait
+    set -euo pipefail
 
+    ## Singularity on this cluster cannot loop-mount the SIF, so every invocation extracts
+    ## the image. Keeping that on node-local disk rather than the NFS-backed default TMPDIR
+    ## takes it from ~140s to ~3s per task.
+    export SINGULARITY_TMPDIR="~{singularityTmpDir}"
 
-    if [ ! -f output_dir/config.json ]; then
-      sed -i 's/bin_size": 1000/bin_size": ~{maxBins}/' ~{configFile}
-      snakemake --jobs 40 --configfile=~{configFile} -s $MAVIS_ROOT/bin/Snakefile
+    cp ~{configFile} config.raw.json
+
+    ## mavis setup samples the input bams to add bam_stats and fills in schema defaults.
+    ## If the requested bin size cannot be satisfied, retry once with a larger one.
+    if ! ~{containerCommand} mavis setup --config config.raw.json --outputfile config.initialized.json; then
+      sed -i 's/bin_size": 1000/bin_size": ~{maxBins}/' config.raw.json
+      ~{containerCommand} mavis setup --config config.raw.json --outputfile config.initialized.json
     fi
 
+    ## Runs inside the container because it imports the mavis_config helpers shipped with
+    ## mavis itself, rather than reimplementing them.
+    ~{containerCommand} python3 <<CODE
+    import json
 
-    if [ -f output_dir_full/summary/MAVIS.COMPLETE ]; then
-        ### create an empty zip file, which will be updated with drawings and legends.  if there are none, than the empty file is provisioned out
-        echo | zip -q > ~{outputFileNamePrefix}.mavis_drawings.zip && zip -dq ~{outputFileNamePrefix}.mavis_drawings.zip -
+    from mavis_config import get_library_inputs, guess_total_batches
 
-        ### find all drawing directories, recursively add the drawings
-        for draw_dir in `ls -d output_dir_full/*~{outputFileNamePrefix}/annotate/*/drawings`
-        do
-          zip -qjur ~{outputFileNamePrefix}.mavis_drawings.zip $draw_dir
-        done
+    with open("config.initialized.json") as handle:
+        config = json.load(handle)
 
-        ### there should be a single mavis_summary_all files
-        cp output_dir_full/summary/mavis_summary_all_*.tab ~{outputFileNamePrefix}.mavis_summary.tab
+    #Every stage below runs in its own Cromwell directory and is given an explicit --output,
+    #so output_dir must stay relative rather than pointing at this task's directory.
+    config["output_dir"] = "output_dir_full"
 
-        ### non-synonymous coding variants are separate into WG or WT files; each may or may not be produced
-        if [ -e output_dir_full/summary/mavis_summary_WG.*_non-synonymous_coding_variants.tab ];then
-          cp output_dir_full/summary/mavis_summary_WG.*_non-synonymous_coding_variants.tab ~{outputFileNamePrefix}.WG_non-synonymous_coding_variants.tab
-        fi
-        if [ -e output_dir_full/summary/mavis_summary_WT.*_non-synonymous_coding_variants.tab ];then
-          cp output_dir_full/summary/mavis_summary_WT.*_non-synonymous_coding_variants.tab ~{outputFileNamePrefix}.WT_non-synonymous_coding_variants.tab
-        fi		  
-        exit 0
-    fi
-    echo "MAVIS job finished but THERE ARE NO RESULTS"
-    exit 1
+    #mavis cluster requires total_batches per library: it is what decides how many batch
+    #files the library is split into. The upstream Snakefile computes this at graph-build
+    #time, so it is neither written by generateConfig nor added by mavis setup.
+    for library in config["libraries"]:
+        if "total_batches" in config["libraries"][library]:
+            continue
+        config["libraries"][library]["total_batches"] = guess_total_batches(
+            config, get_library_inputs(config, library)
+        )
 
+    with open("config.initialized.json", "w") as handle:
+        json.dump(config, handle, sort_keys=True, indent="  ")
+
+    #The library and converter alias lists drive the scatters in the workflow body. Taking
+    #them from the initialized config keeps them consistent with what mavis will accept.
+    with open("libraries.txt", "w") as handle:
+        for library in sorted(config["libraries"]):
+            handle.write(library + "\n")
+
+    with open("aliases.txt", "w") as handle:
+        for alias in sorted(config.get("convert", {})):
+            handle.write(alias + "\n")
+    CODE
   >>>
 
   runtime {
     memory:  "~{jobMemory} GB"
+    cpu:     "~{cores}"
     modules: "~{modules}"
     timeout: "~{timeout}"
   }
 
   output {
-    File drawings  = "~{outputFileNamePrefix}.mavis_drawings.zip"
-    File summary   = "~{outputFileNamePrefix}.mavis_summary.tab"
-    File? nscvWT   = "~{outputFileNamePrefix}.WT_non-synonymous_coding_variants.tab"
-    File? nscvWG   = "~{outputFileNamePrefix}.WG_non-synonymous_coding_variants.tab"
+    File initializedConfig = "config.initialized.json"
+    File libraryList = "libraries.txt"
+    File aliasList = "aliases.txt"
+  }
+}
+
+
+task convert {
+  input {
+    File configFile
+    String converterAlias
+    String modules
+    String containerCommand = "singularity exec -B /.mounts/ -B /scratch3/ $MAVIS_ROOT/bin/mavis.sif"
+    String singularityTmpDir = "/tmp"
+    Int jobMemory = 16
+    Int cores = 1
+    Int timeout = 6
   }
 
+  parameter_meta {
+    configFile: "Initialized .json configuration file, as written by the setup task"
+    converterAlias: "Name of the converter to run, one of the keys of the config's convert section (e.g. delly, starfusion)"
+    modules: "Modules needed to run MAVIS"
+    containerCommand: "Command used to enter the mavis container. The mavis module ships only a snakemake wrapper, so mavis and its bundled python helpers are invoked through singularity directly"
+    singularityTmpDir: "Directory singularity extracts the image into. Must be node-local, an NFS-backed default costs minutes per task"
+    jobMemory: "Memory allocated for this job"
+    cores: "Number of cores allocated for this job"
+    timeout: "Timeout in hours, needed to override imposed limits"
+  }
+
+  command <<<
+
+    set -euo pipefail
+
+    export SINGULARITY_TMPDIR="~{singularityTmpDir}"
+
+    mkdir -p converted_outputs output_dir_full
+
+    ## The conversion flags are read from the initialized config rather than passed in:
+    ## mavis setup is what fills in the schema defaults, and strand_specific in particular
+    ## is never written by generateConfig.
+    python3 <<CODE
+    import json
+    import shlex
+
+    with open("~{configFile}") as handle:
+        settings = json.load(handle)["convert"]["~{converterAlias}"]
+
+    arguments = [
+        "~{containerCommand} mavis",
+        "convert",
+        "--file_type", str(settings["file_type"]),
+        "--strand_specific", str(settings["strand_specific"]),
+        "--assume_no_untemplated", str(settings["assume_no_untemplated"]),
+        "--inputs",
+    ]
+    arguments.extend(shlex.quote(str(path)) for path in settings["inputs"])
+    arguments.extend(["--outputfile", "converted_outputs/~{converterAlias}.tab"])
+
+    with open("convert.sh", "w") as handle:
+        handle.write("#!/bin/bash\n")
+        handle.write("set -euo pipefail\n")
+        handle.write(" ".join(arguments) + "\n")
+    CODE
+
+    bash convert.sh
+  >>>
+
+  runtime {
+    memory:  "~{jobMemory} GB"
+    cpu:     "~{cores}"
+    modules: "~{modules}"
+    timeout: "~{timeout}"
+  }
+
+  output {
+    File converted = "converted_outputs/~{converterAlias}.tab"
+  }
+}
+
+
+task cluster {
+  input {
+    File configFile
+    String library
+    Array[File] convertedFiles
+    String modules
+    String containerCommand = "singularity exec -B /.mounts/ -B /scratch3/ $MAVIS_ROOT/bin/mavis.sif"
+    String singularityTmpDir = "/tmp"
+    Int jobMemory = 16
+    Int cores = 1
+    Int timeout = 6
+  }
+
+  parameter_meta {
+    configFile: "Initialized .json configuration file, as written by the setup task"
+    library: "Name of the library to cluster, one of the keys of the config's libraries section (e.g. WG.SAMPLE.ID)"
+    convertedFiles: "Converted SV calls for every alias. The ones assigned to this library are selected from the config"
+    modules: "Modules needed to run MAVIS"
+    containerCommand: "Command used to enter the mavis container. The mavis module ships only a snakemake wrapper, so mavis and its bundled python helpers are invoked through singularity directly"
+    singularityTmpDir: "Directory singularity extracts the image into. Must be node-local, an NFS-backed default costs minutes per task"
+    jobMemory: "Memory allocated for this job"
+    cores: "Number of cores allocated for this job"
+    timeout: "Timeout in hours, needed to override imposed limits"
+  }
+
+  command <<<
+
+    set -euo pipefail
+
+    export SINGULARITY_TMPDIR="~{singularityTmpDir}"
+
+    mkdir -p output_dir_full
+
+    ## Each entry of the library's assign list names a converter whose output is called
+    ## <alias>.tab; anything not produced by a converter is already a path. This mirrors
+    ## get_cluster_inputs in the MAVIS Snakefile.
+    python3 <<CODE
+    import json
+    import os
+    import shlex
+
+    with open("~{configFile}") as handle:
+        config = json.load(handle)
+
+    converted = {}
+    for path in "~{sep=' ' convertedFiles}".split():
+        converted[os.path.basename(path)] = path
+
+    inputs = []
+    for alias in config["libraries"]["~{library}"]["assign"]:
+        inputs.append(converted.get(alias + ".tab", alias))
+
+    arguments = [
+        "~{containerCommand} mavis",
+        "cluster",
+        "--config", shlex.quote("~{configFile}"),
+        "--library", shlex.quote("~{library}"),
+        "--inputs",
+    ]
+    arguments.extend(shlex.quote(path) for path in inputs)
+    arguments.extend(["--output", shlex.quote("cluster")])
+
+    with open("cluster.sh", "w") as handle:
+        handle.write("#!/bin/bash\n")
+        handle.write("set -euo pipefail\n")
+        handle.write(" ".join(arguments) + "\n")
+    CODE
+
+    bash cluster.sh
+  >>>
+
+  runtime {
+    memory:  "~{jobMemory} GB"
+    cpu:     "~{cores}"
+    modules: "~{modules}"
+    timeout: "~{timeout}"
+  }
+
+  output {
+    Array[File] batches = glob("cluster/batch-*.tab")
+  }
+}
+
+
+task validateAndAnnotate {
+  input {
+    File configFile
+    String library
+    File batchFile
+    String batchName = basename(batchFile, ".tab")
+    String modules
+    String containerCommand = "singularity exec -B /.mounts/ -B /scratch3/ $MAVIS_ROOT/bin/mavis.sif"
+    String singularityTmpDir = "/tmp"
+    Int jobMemory = 18
+    Int cores = 2
+    Int timeout = 24
+  }
+
+  parameter_meta {
+    configFile: "Initialized .json configuration file, as written by the setup task"
+    library: "Name of the library this batch belongs to (e.g. WG.SAMPLE.ID)"
+    batchFile: "A single batch of clusters produced by the cluster task"
+    batchName: "Name of the batch, taken from the batch file name and used for the output directories"
+    modules: "Modules needed to run MAVIS"
+    containerCommand: "Command used to enter the mavis container. The mavis module ships only a snakemake wrapper, so mavis and its bundled python helpers are invoked through singularity directly"
+    singularityTmpDir: "Directory singularity extracts the image into. Must be node-local, an NFS-backed default costs minutes per task"
+    jobMemory: "Memory allocated for this job"
+    cores: "Number of cores allocated for this job"
+    timeout: "Timeout in hours, needed to override imposed limits"
+  }
+
+  command <<<
+
+    set -euo pipefail
+
+    export SINGULARITY_TMPDIR="~{singularityTmpDir}"
+
+    mkdir -p output_dir_full
+
+    ## validate and annotate are one-to-one per batch, so they are fused into a single task:
+    ## splitting them would localize the same intermediates twice for no added tracking.
+    ~{containerCommand} mavis validate \
+      --config ~{configFile} \
+      --library ~{library} \
+      --inputs ~{batchFile} \
+      --output validate/~{batchName}
+
+    ~{containerCommand} mavis annotate \
+      --config ~{configFile} \
+      --library ~{library} \
+      --inputs validate/~{batchName}/validation-passed.tab \
+      --output annotate/~{batchName}
+
+    if [ ! -f annotate/~{batchName}/MAVIS.COMPLETE ]; then
+      echo "ERROR: annotate did not complete for ~{library} ~{batchName}" >&2
+      exit 1
+    fi
+  >>>
+
+  runtime {
+    memory:  "~{jobMemory} GB"
+    cpu:     "~{cores}"
+    modules: "~{modules}"
+    timeout: "~{timeout}"
+  }
+
+  output {
+    File annotations = "annotate/~{batchName}/annotations.tab"
+    Array[File] drawings = glob("annotate/~{batchName}/drawings/*")
+  }
+}
+
+
+task pairing {
+  input {
+    File configFile
+    Array[File] annotations
+    String modules
+    String containerCommand = "singularity exec -B /.mounts/ -B /scratch3/ $MAVIS_ROOT/bin/mavis.sif"
+    String singularityTmpDir = "/tmp"
+    Int jobMemory = 16
+    Int cores = 1
+    Int timeout = 12
+  }
+
+  parameter_meta {
+    configFile: "Initialized .json configuration file, as written by the setup task"
+    annotations: "Annotations from every batch of every library"
+    modules: "Modules needed to run MAVIS"
+    containerCommand: "Command used to enter the mavis container. The mavis module ships only a snakemake wrapper, so mavis and its bundled python helpers are invoked through singularity directly"
+    singularityTmpDir: "Directory singularity extracts the image into. Must be node-local, an NFS-backed default costs minutes per task"
+    jobMemory: "Memory allocated for this job"
+    cores: "Number of cores allocated for this job"
+    timeout: "Timeout in hours, needed to override imposed limits"
+  }
+
+  command <<<
+
+    set -euo pipefail
+
+    export SINGULARITY_TMPDIR="~{singularityTmpDir}"
+
+    ## mavis pairing writes straight into --output without creating it: snakemake used to
+    ## create the parent directories of a rule's declared outputs beforehand.
+    mkdir -p output_dir_full pairing
+
+    ~{containerCommand} mavis pairing \
+      --config ~{configFile} \
+      --inputs ~{sep=' ' annotations} \
+      --output pairing
+
+    if [ ! -f pairing/MAVIS.COMPLETE ]; then
+      echo "ERROR: pairing did not complete" >&2
+      exit 1
+    fi
+  >>>
+
+  runtime {
+    memory:  "~{jobMemory} GB"
+    cpu:     "~{cores}"
+    modules: "~{modules}"
+    timeout: "~{timeout}"
+  }
+
+  output {
+    File paired = "pairing/mavis_paired.tab"
+  }
+}
+
+
+task mavisSummary {
+  input {
+    File configFile
+    File pairedFile
+    Array[File] drawingFiles
+    String outputFileNamePrefix
+    String modules
+    String containerCommand = "singularity exec -B /.mounts/ -B /scratch3/ $MAVIS_ROOT/bin/mavis.sif"
+    String singularityTmpDir = "/tmp"
+    Int jobMemory = 16
+    Int cores = 1
+    Int timeout = 12
+  }
+
+  parameter_meta {
+    configFile: "Initialized .json configuration file, as written by the setup task"
+    pairedFile: "Paired annotations produced by the pairing task"
+    drawingFiles: "Drawings produced by every annotate batch, collected into the output archive"
+    outputFileNamePrefix: "sample ID, this is provided to maivs and cannot include reseerved characters [;,_\\s] "
+    modules: "Modules needed to run MAVIS"
+    containerCommand: "Command used to enter the mavis container. The mavis module ships only a snakemake wrapper, so mavis and its bundled python helpers are invoked through singularity directly"
+    singularityTmpDir: "Directory singularity extracts the image into. Must be node-local, an NFS-backed default costs minutes per task"
+    jobMemory: "Memory allocated for this job"
+    cores: "Number of cores allocated for this job"
+    timeout: "Timeout in hours, needed to override imposed limits"
+  }
+
+  command <<<
+
+    set -euo pipefail
+
+    export SINGULARITY_TMPDIR="~{singularityTmpDir}"
+
+    ## As with pairing, create the output directory rather than relying on the caller to
+    ## have made it.
+    mkdir -p output_dir_full summary
+
+    ~{containerCommand} mavis summary \
+      --config ~{configFile} \
+      --inputs ~{pairedFile} \
+      --output summary
+
+    if [ ! -f summary/MAVIS.COMPLETE ]; then
+      echo "MAVIS job finished but THERE ARE NO RESULTS" >&2
+      exit 1
+    fi
+
+    ### create an empty zip file, which will be updated with drawings and legends.  if there are none, than the empty file is provisioned out
+    echo | zip -q > ~{outputFileNamePrefix}.mavis_drawings.zip && zip -dq ~{outputFileNamePrefix}.mavis_drawings.zip -
+
+    ### the leading "" keeps the loop valid when no drawings were produced at all
+    : > drawings.list
+    for drawing in "" ~{sep=' ' drawingFiles}; do
+      if [ -n "$drawing" ]; then
+        printf '%s\n' "$drawing" >> drawings.list
+      fi
+    done
+
+    ### add every drawing to the archive, flattened, as the single-task version did
+    if [ -s drawings.list ]; then
+      zip -qj ~{outputFileNamePrefix}.mavis_drawings.zip -@ < drawings.list
+    fi
+
+    ### there should be a single mavis_summary_all files
+    cp summary/mavis_summary_all_*.tab ~{outputFileNamePrefix}.mavis_summary.tab
+
+    ### non-synonymous coding variants are separate into WG or WT files; each may or may not be produced
+    if [ -e summary/mavis_summary_WG.*_non-synonymous_coding_variants.tab ];then
+      cp summary/mavis_summary_WG.*_non-synonymous_coding_variants.tab ~{outputFileNamePrefix}.WG_non-synonymous_coding_variants.tab
+    fi
+    if [ -e summary/mavis_summary_WT.*_non-synonymous_coding_variants.tab ];then
+      cp summary/mavis_summary_WT.*_non-synonymous_coding_variants.tab ~{outputFileNamePrefix}.WT_non-synonymous_coding_variants.tab
+    fi
+  >>>
+
+  runtime {
+    memory:  "~{jobMemory} GB"
+    cpu:     "~{cores}"
+    modules: "~{modules}"
+    timeout: "~{timeout}"
+  }
+
+  output {
+    File drawings     = "~{outputFileNamePrefix}.mavis_drawings.zip"
+    File summaryFile  = "~{outputFileNamePrefix}.mavis_summary.tab"
+    File? nscvWT      = "~{outputFileNamePrefix}.WT_non-synonymous_coding_variants.tab"
+    File? nscvWG      = "~{outputFileNamePrefix}.WG_non-synonymous_coding_variants.tab"
+  }
 }
