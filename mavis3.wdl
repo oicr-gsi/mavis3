@@ -899,7 +899,7 @@ task validateAndAnnotate {
     String modules
     String containerCommand = "singularity exec -B /.mounts/ -B /scratch3/ $MAVIS_ROOT/bin/mavis.sif"
     String singularityTmpDir = "/tmp"
-    Int jobMemory = 18
+    Int jobMemory = 32
     Int cores = 2
     Int timeout = 24
   }
