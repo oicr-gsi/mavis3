@@ -414,18 +414,24 @@ This section lists command(s) run by mavis3 workflow
 
     mkdir -p output_dir_full
 
-    ## validate and annotate are one-to-one per batch, so they are fused into a single task:
-    ## splitting them would localize the same intermediates twice for no added tracking.
     ~{containerCommand} mavis validate \
       --config ~{configFile} \
       --library ~{library} \
       --inputs ~{batchFile} \
       --output validate/~{batchName}
+```
+```
+
+    set -euo pipefail
+
+    export SINGULARITY_TMPDIR="~{singularityTmpDir}"
+
+    mkdir -p output_dir_full
 
     ~{containerCommand} mavis annotate \
       --config ~{configFile} \
       --library ~{library} \
-      --inputs validate/~{batchName}/validation-passed.tab \
+      --inputs ~{inputFile} \
       --output annotate/~{batchName}
 
     if [ ! -f annotate/~{batchName}/MAVIS.COMPLETE ]; then

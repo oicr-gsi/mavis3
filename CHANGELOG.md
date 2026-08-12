@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `SINGULARITY_TMPDIR` is set to node-local disk in every stage. Singularity cannot
   loop-mount the image on this cluster, and extracting it to the NFS-backed default TMPDIR
   cost about 140 seconds per invocation instead of 3.
+- Set the default value of cluster.min_clusters_per_file to 10 instead of 100
 
 Workflow inputs, outputs and vidarr labels are unchanged.
 

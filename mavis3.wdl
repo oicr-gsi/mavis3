@@ -158,17 +158,29 @@ workflow mavis3 {
     ## total_batches, set in setup, tells cluster how many batch files to write; the scatter
     ## width is taken from the files it actually produced.
     scatter(batchFile in cluster.batches) {
-      call validateAndAnnotate {
+      String batchName = basename(batchFile, ".tab")
+
+      call validate {
         input:
           configFile = setup.initializedConfig,
           library = library,
           batchFile = batchFile,
+          batchName = batchName,
+          modules = mavis_modules
+      }
+
+      call annotate {
+        input:
+          configFile = setup.initializedConfig,
+          library = library,
+          batchName = batchName,
+          inputFile = validate.result,
           modules = mavis_modules
       }
     }
 
-    Array[File] libraryAnnotations = validateAndAnnotate.annotations
-    Array[Array[File]] libraryDrawings = validateAndAnnotate.drawings
+    Array[File] libraryAnnotations = annotate.annotations
+    Array[Array[File]] libraryDrawings = annotate.drawings
   }
 
   call pairing {
@@ -215,7 +227,7 @@ workflow mavis3 {
         description: "Whole genome non-synonymous coding variants. The output file is only generated if variants are found",
         vidarr_label: "nscvWG"
     }
-}
+    }
   }
 
 
@@ -449,7 +461,7 @@ task generateConfig {
 
   ## Declare default values for config file flags
   Boolean drawFusionsActual = select_first([drawFusionsOnly, false])
-  Int minClustersActual = select_first([minClustersPerFile, 100])
+  Int minClustersActual = select_first([minClustersPerFile, 10])
   Boolean uninformativeFilterActual = select_first([uninformativeFilter, true])
   Int filterMinFlankingActual = select_first([filterMinFlankingReads, 10])
   Int filterMinLinkingActual = select_first([filterMinLinkingSplitReads, 1])
@@ -624,7 +636,7 @@ task generateConfig {
 
 
 # ===================================
-#  MAVIS STAGES
+#  MAVIS STAGES 
 #
 #  One task per stage, transcribed from the MAVIS v3.1.2 Snakefile, which is no longer
 #  executed: Cromwell owns the dependency graph so that each stage is tracked and sized
@@ -890,25 +902,25 @@ task cluster {
 }
 
 
-task validateAndAnnotate {
+task validate {
   input {
     File configFile
     String library
     File batchFile
-    String batchName = basename(batchFile, ".tab")
+    String batchName
     String modules
     String containerCommand = "singularity exec -B /.mounts/ -B /scratch3/ $MAVIS_ROOT/bin/mavis.sif"
     String singularityTmpDir = "/tmp"
-    Int jobMemory = 32
+    Int jobMemory = 18
     Int cores = 2
-    Int timeout = 24
+    Int timeout = 16
   }
 
   parameter_meta {
     configFile: "Initialized .json configuration file, as written by the setup task"
     library: "Name of the library this batch belongs to (e.g. WG.SAMPLE.ID)"
     batchFile: "A single batch of clusters produced by the cluster task"
-    batchName: "Name of the batch, taken from the batch file name and used for the output directories"
+    batchName: "Name of the batch, taken from the batch file name and shared with the corresponding annotate call"
     modules: "Modules needed to run MAVIS"
     containerCommand: "Command used to enter the mavis container. The mavis module ships only a snakemake wrapper, so mavis and its bundled python helpers are invoked through singularity directly"
     singularityTmpDir: "Directory singularity extracts the image into. Must be node-local, an NFS-backed default costs minutes per task"
@@ -925,18 +937,65 @@ task validateAndAnnotate {
 
     mkdir -p output_dir_full
 
-    ## validate and annotate are one-to-one per batch, so they are fused into a single task:
-    ## splitting them would localize the same intermediates twice for no added tracking.
     ~{containerCommand} mavis validate \
       --config ~{configFile} \
       --library ~{library} \
       --inputs ~{batchFile} \
       --output validate/~{batchName}
+  >>>
+
+  runtime {
+    memory:  "~{jobMemory} GB"
+    cpu:     "~{cores}"
+    modules: "~{modules}"
+    timeout: "~{timeout}"
+  }
+
+  output {
+    File result = "validate/~{batchName}/validation-passed.tab"
+  }
+}
+
+
+task annotate {
+  input {
+    File configFile
+    String library
+    String batchName
+    File inputFile
+    String modules
+    String containerCommand = "singularity exec -B /.mounts/ -B /scratch3/ $MAVIS_ROOT/bin/mavis.sif"
+    String singularityTmpDir = "/tmp"
+    Int jobMemory = 16
+    Int cores = 2
+    Int timeout = 16
+  }
+
+  parameter_meta {
+    configFile: "Initialized .json configuration file, as written by the setup task"
+    library: "Name of the library this batch belongs to (e.g. WG.SAMPLE.ID)"
+    batchName: "Name of the batch, taken from the batch file name and shared with the corresponding validate call"
+    inputFile: "The validate stage's validation-passed.tab for this batch"
+    modules: "Modules needed to run MAVIS"
+    containerCommand: "Command used to enter the mavis container. The mavis module ships only a snakemake wrapper, so mavis and its bundled python helpers are invoked through singularity directly"
+    singularityTmpDir: "Directory singularity extracts the image into. Must be node-local, an NFS-backed default costs minutes per task"
+    jobMemory: "Memory allocated for this job"
+    cores: "Number of cores allocated for this job"
+    timeout: "Timeout in hours, needed to override imposed limits"
+  }
+
+  command <<<
+
+    set -euo pipefail
+
+    export SINGULARITY_TMPDIR="~{singularityTmpDir}"
+
+    mkdir -p output_dir_full
 
     ~{containerCommand} mavis annotate \
       --config ~{configFile} \
       --library ~{library} \
-      --inputs validate/~{batchName}/validation-passed.tab \
+      --inputs ~{inputFile} \
       --output annotate/~{batchName}
 
     if [ ! -f annotate/~{batchName}/MAVIS.COMPLETE ]; then
