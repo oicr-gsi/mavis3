@@ -461,7 +461,7 @@ task generateConfig {
 
   ## Declare default values for config file flags
   Boolean drawFusionsActual = select_first([drawFusionsOnly, false])
-  Int minClustersActual = select_first([minClustersPerFile, 10])
+  Int minClustersActual = select_first([minClustersPerFile, 30])
   Boolean uninformativeFilterActual = select_first([uninformativeFilter, true])
   Int filterMinFlankingActual = select_first([filterMinFlankingReads, 10])
   Int filterMinLinkingActual = select_first([filterMinLinkingSplitReads, 1])
