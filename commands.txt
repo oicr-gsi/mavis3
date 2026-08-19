@@ -9,12 +9,12 @@ This section lists command(s) run by mavis3 workflow
 
     set -eu -o pipefail
 
-    python3<<CODE 
+    python3<<CODE
     import subprocess
     import os
     import shlex
     import gzip
-    
+
     #Separate input arrays
     s = "~{sep=' ' svFiles}"
     svFiles = s.split()
@@ -74,7 +74,7 @@ This section lists command(s) run by mavis3 workflow
                             if sv_file.lower().endswith(".vcf"):
                                 input_file.write(f'{sv_file}\n')
 
-                    #Run survivor     
+                    #Run survivor
                     survivor_command = f'"~{survivorExecutable}" merge "survivor_input.txt" 1000 2 0 0 0 1 merged.vcf'
                     result = subprocess.run(survivor_command, shell=True)
                     if result.returncode != 0:
@@ -95,7 +95,7 @@ This section lists command(s) run by mavis3 workflow
 
                 #Add matched variants that were filtered out, to the filtered delly
                 if os.path.exists('merged.vcf'):
-                 
+
                     bedtools_command2 = [
                         'bedtools', 'intersect',
                         '-a', 'matched_entries.vcf',
@@ -117,13 +117,12 @@ This section lists command(s) run by mavis3 workflow
 
     CODE
 ```
-
 ```
 
     set -eu -o pipefail
 
     ## Use python snippet to generate config file
-    python3<<CODE 
+    python3<<CODE
     import json
     import os
 
@@ -156,7 +155,7 @@ This section lists command(s) run by mavis3 workflow
     if ("WG" in bamLibraryDesigns and "WG" in svLibraryDesigns) or ("WT" in bamLibraryDesigns and "WT" in svLibraryDesigns):
         inputs = True
 
-    if inputs != True:   
+    if inputs != True:
         print("Missing inputs for whole genome and whole transcriptome analyses. Please ensure complete inputs are "
               "supplied for at least one of these analyses.")
 
@@ -234,10 +233,10 @@ This section lists command(s) run by mavis3 workflow
                             str(svFiles[index])
                         ]
                     }
-  
+
         for index, bam in enumerate(bams):
             if bamLibraryDesigns[index] == "WG":
-                if "WG." + "~{outputFileNamePrefix}" not in jsonDict["libraries"]: 
+                if "WG." + "~{outputFileNamePrefix}" not in jsonDict["libraries"]:
                     jsonDict["libraries"]["WG." + "~{outputFileNamePrefix}"] = {
                         "assign": [],
                         "bam_file": bams[index],
@@ -258,7 +257,7 @@ This section lists command(s) run by mavis3 workflow
             if name.lower() == "delly":
                 jsonDict["libraries"]["WG." + "~{outputFileNamePrefix}"]["assign"].append("delly")
             if name.lower() == "gridss":
-                jsonDict["libraries"]["WG." + "~{outputFileNamePrefix}"]["assign"].append("gridss")        
+                jsonDict["libraries"]["WG." + "~{outputFileNamePrefix}"]["assign"].append("gridss")
             if name.lower() == "starfusion":
                 jsonDict["libraries"]["WT." + "~{outputFileNamePrefix}"]["assign"].append("starfusion")
             if name.lower() == "arriba":
@@ -271,41 +270,239 @@ This section lists command(s) run by mavis3 workflow
 ```
 ```
 
-    set -eu -o pipefail
-    
-    snakemake --jobs 40 --configfile=~{configFile} -s $MAVIS_ROOT/bin/Snakefile &
-    wait
+    set -euo pipefail
 
+    ## Singularity on this cluster cannot loop-mount the SIF, so every invocation extracts
+    ## the image. Keeping that on node-local disk rather than the NFS-backed default TMPDIR
+    ## takes it from ~140s to ~3s per task.
+    export SINGULARITY_TMPDIR="~{singularityTmpDir}"
 
-    if [ ! -f output_dir/config.json ]; then
-      sed -i 's/bin_size": 1000/bin_size": ~{maxBins}/' ~{configFile}
-      snakemake --jobs 40 --configfile=~{configFile} -s $MAVIS_ROOT/bin/Snakefile
+    cp ~{configFile} config.raw.json
+
+    ## mavis setup samples the input bams to add bam_stats and fills in schema defaults.
+    ## If the requested bin size cannot be satisfied, retry once with a larger one.
+    if ! ~{containerCommand} mavis setup --config config.raw.json --outputfile config.initialized.json; then
+      sed -i 's/bin_size": 1000/bin_size": ~{maxBins}/' config.raw.json
+      ~{containerCommand} mavis setup --config config.raw.json --outputfile config.initialized.json
     fi
 
+    ## Runs inside the container because it imports the mavis_config helpers shipped with
+    ## mavis itself, rather than reimplementing them.
+    ~{containerCommand} python3 <<CODE
+    import json
 
-    if [ -f output_dir_full/summary/MAVIS.COMPLETE ]; then
-        ### create an empty zip file, which will be updated with drawings and legends.  if there are none, than the empty file is provisioned out
-        echo | zip -q > ~{outputFileNamePrefix}.mavis_drawings.zip && zip -dq ~{outputFileNamePrefix}.mavis_drawings.zip -
+    from mavis_config import get_library_inputs, guess_total_batches
 
-        ### find all drawing directories, recursively add the drawings
-        for draw_dir in `ls -d output_dir_full/*~{outputFileNamePrefix}/annotate/*/drawings`
-        do
-          zip -qjur ~{outputFileNamePrefix}.mavis_drawings.zip $draw_dir
-        done
+    with open("config.initialized.json") as handle:
+        config = json.load(handle)
 
-        ### there should be a single mavis_summary_all files
-        cp output_dir_full/summary/mavis_summary_all_*.tab ~{outputFileNamePrefix}.mavis_summary.tab
+    #Every stage below runs in its own Cromwell directory and is given an explicit --output,
+    #so output_dir must stay relative rather than pointing at this task's directory.
+    config["output_dir"] = "output_dir_full"
 
-        ### non-synonymous coding variants are separate into WG or WT files; each may or may not be produced
-        if [ -e output_dir_full/summary/mavis_summary_WG.*_non-synonymous_coding_variants.tab ];then
-          cp output_dir_full/summary/mavis_summary_WG.*_non-synonymous_coding_variants.tab ~{outputFileNamePrefix}.WG_non-synonymous_coding_variants.tab
-        fi
-        if [ -e output_dir_full/summary/mavis_summary_WT.*_non-synonymous_coding_variants.tab ];then
-          cp output_dir_full/summary/mavis_summary_WT.*_non-synonymous_coding_variants.tab ~{outputFileNamePrefix}.WT_non-synonymous_coding_variants.tab
-        fi		  
-        exit 0
+    #mavis cluster requires total_batches per library: it is what decides how many batch
+    #files the library is split into. The upstream Snakefile computes this at graph-build
+    #time, so it is neither written by generateConfig nor added by mavis setup.
+    for library in config["libraries"]:
+        if "total_batches" in config["libraries"][library]:
+            continue
+        config["libraries"][library]["total_batches"] = guess_total_batches(
+            config, get_library_inputs(config, library)
+        )
+
+    with open("config.initialized.json", "w") as handle:
+        json.dump(config, handle, sort_keys=True, indent="  ")
+
+    #The library and converter alias lists drive the scatters in the workflow body. Taking
+    #them from the initialized config keeps them consistent with what mavis will accept.
+    with open("libraries.txt", "w") as handle:
+        for library in sorted(config["libraries"]):
+            handle.write(library + "\n")
+
+    with open("aliases.txt", "w") as handle:
+        for alias in sorted(config.get("convert", {})):
+            handle.write(alias + "\n")
+    CODE
+```
+```
+
+    set -euo pipefail
+
+    export SINGULARITY_TMPDIR="~{singularityTmpDir}"
+
+    mkdir -p converted_outputs output_dir_full
+
+    ## The conversion flags are read from the initialized config rather than passed in:
+    ## mavis setup is what fills in the schema defaults, and strand_specific in particular
+    ## is never written by generateConfig.
+    python3 <<CODE
+    import json
+    import shlex
+
+    with open("~{configFile}") as handle:
+        settings = json.load(handle)["convert"]["~{converterAlias}"]
+
+    arguments = [
+        "~{containerCommand} mavis",
+        "convert",
+        "--file_type", str(settings["file_type"]),
+        "--strand_specific", str(settings["strand_specific"]),
+        "--assume_no_untemplated", str(settings["assume_no_untemplated"]),
+        "--inputs",
+    ]
+    arguments.extend(shlex.quote(str(path)) for path in settings["inputs"])
+    arguments.extend(["--outputfile", "converted_outputs/~{converterAlias}.tab"])
+
+    with open("convert.sh", "w") as handle:
+        handle.write("#!/bin/bash\n")
+        handle.write("set -euo pipefail\n")
+        handle.write(" ".join(arguments) + "\n")
+    CODE
+
+    bash convert.sh
+```
+```
+
+    set -euo pipefail
+
+    export SINGULARITY_TMPDIR="~{singularityTmpDir}"
+
+    mkdir -p output_dir_full
+
+    ## Each entry of the library's assign list names a converter whose output is called
+    ## <alias>.tab; anything not produced by a converter is already a path. This mirrors
+    ## get_cluster_inputs in the MAVIS Snakefile.
+    python3 <<CODE
+    import json
+    import os
+    import shlex
+
+    with open("~{configFile}") as handle:
+        config = json.load(handle)
+
+    converted = {}
+    for path in "~{sep=' ' convertedFiles}".split():
+        converted[os.path.basename(path)] = path
+
+    inputs = []
+    for alias in config["libraries"]["~{library}"]["assign"]:
+        inputs.append(converted.get(alias + ".tab", alias))
+
+    arguments = [
+        "~{containerCommand} mavis",
+        "cluster",
+        "--config", shlex.quote("~{configFile}"),
+        "--library", shlex.quote("~{library}"),
+        "--inputs",
+    ]
+    arguments.extend(shlex.quote(path) for path in inputs)
+    arguments.extend(["--output", shlex.quote("cluster")])
+
+    with open("cluster.sh", "w") as handle:
+        handle.write("#!/bin/bash\n")
+        handle.write("set -euo pipefail\n")
+        handle.write(" ".join(arguments) + "\n")
+    CODE
+
+    bash cluster.sh
+```
+```
+
+    set -euo pipefail
+
+    export SINGULARITY_TMPDIR="~{singularityTmpDir}"
+
+    mkdir -p output_dir_full
+
+    ~{containerCommand} mavis validate \
+      --config ~{configFile} \
+      --library ~{library} \
+      --inputs ~{batchFile} \
+      --output validate/~{batchName}
+```
+```
+
+    set -euo pipefail
+
+    export SINGULARITY_TMPDIR="~{singularityTmpDir}"
+
+    mkdir -p output_dir_full
+
+    ~{containerCommand} mavis annotate \
+      --config ~{configFile} \
+      --library ~{library} \
+      --inputs ~{inputFile} \
+      --output annotate/~{batchName}
+
+    if [ ! -f annotate/~{batchName}/MAVIS.COMPLETE ]; then
+      echo "ERROR: annotate did not complete for ~{library} ~{batchName}" >&2
+      exit 1
     fi
-    echo "MAVIS job finished but THERE ARE NO RESULTS"
-    exit 1
+```
+```
 
+    set -euo pipefail
+
+    export SINGULARITY_TMPDIR="~{singularityTmpDir}"
+
+    ## mavis pairing writes straight into --output without creating it: snakemake used to
+    ## create the parent directories of a rule's declared outputs beforehand.
+    mkdir -p output_dir_full pairing
+
+    ~{containerCommand} mavis pairing \
+      --config ~{configFile} \
+      --inputs ~{sep=' ' annotations} \
+      --output pairing
+
+    if [ ! -f pairing/MAVIS.COMPLETE ]; then
+      echo "ERROR: pairing did not complete" >&2
+      exit 1
+    fi
+```
+```
+
+    set -euo pipefail
+
+    export SINGULARITY_TMPDIR="~{singularityTmpDir}"
+
+    ## As with pairing, create the output directory rather than relying on the caller to
+    ## have made it.
+    mkdir -p output_dir_full summary
+
+    ~{containerCommand} mavis summary \
+      --config ~{configFile} \
+      --inputs ~{pairedFile} \
+      --output summary
+
+    if [ ! -f summary/MAVIS.COMPLETE ]; then
+      echo "MAVIS job finished but THERE ARE NO RESULTS" >&2
+      exit 1
+    fi
+
+    ### create an empty zip file, which will be updated with drawings and legends.  if there are none, than the empty file is provisioned out
+    echo | zip -q > ~{outputFileNamePrefix}.mavis_drawings.zip && zip -dq ~{outputFileNamePrefix}.mavis_drawings.zip -
+
+    ### the leading "" keeps the loop valid when no drawings were produced at all
+    : > drawings.list
+    for drawing in "" ~{sep=' ' drawingFiles}; do
+      if [ -n "$drawing" ]; then
+        printf '%s\n' "$drawing" >> drawings.list
+      fi
+    done
+
+    ### add every drawing to the archive, flattened, as the single-task version did
+    if [ -s drawings.list ]; then
+      zip -qj ~{outputFileNamePrefix}.mavis_drawings.zip -@ < drawings.list
+    fi
+
+    ### there should be a single mavis_summary_all files
+    cp summary/mavis_summary_all_*.tab ~{outputFileNamePrefix}.mavis_summary.tab
+
+    ### non-synonymous coding variants are separate into WG or WT files; each may or may not be produced
+    if [ -e summary/mavis_summary_WG.*_non-synonymous_coding_variants.tab ];then
+      cp summary/mavis_summary_WG.*_non-synonymous_coding_variants.tab ~{outputFileNamePrefix}.WG_non-synonymous_coding_variants.tab
+    fi
+    if [ -e summary/mavis_summary_WT.*_non-synonymous_coding_variants.tab ];then
+      cp summary/mavis_summary_WT.*_non-synonymous_coding_variants.tab ~{outputFileNamePrefix}.WT_non-synonymous_coding_variants.tab
+    fi
 ```

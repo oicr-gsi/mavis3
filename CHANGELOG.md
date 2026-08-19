@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-07-25
+### Change
+- Split the single monolithic `runMavis` task into one task per MAVIS stage (`setup`,
+  `convert`, `cluster`, `validate`, `annotate`, `pairing`, `mavisSummary`) so that Cromwell
+  tracks, sizes and retries each stage individually. `validate` and `annotate` are fused
+  into one task because they are one-to-one per batch.
+- MAVIS is no longer run through snakemake; Cromwell owns the dependency graph. `setup`
+  computes the per-library `total_batches` that `mavis cluster` requires, and `pairing` and
+  `mavisSummary` create their own output directories. Snakemake used to handle both.
+- Memory is now requested per stage (16 GB, 32 GB for `validate` and `annotate`) instead of one
+  120 GB reservation for the whole pipeline. The per-stage limits are enforced by the
+  scheduler, which the Snakefile's own declarations never were.
+- `SINGULARITY_TMPDIR` is set to node-local disk in every stage. Singularity cannot
+  loop-mount the image on this cluster, and extracting it to the NFS-backed default TMPDIR
+  cost about 140 seconds per invocation instead of 3.
+- Set the default value of cluster.min_clusters_per_file to 30 instead of 100
+
+Workflow inputs, outputs and vidarr labels are unchanged.
+
 ## [1.5.2] - 2026-06-09
 ### Fix
 - Regression: exclude non-deterministic supplementary `_NA` drawings from
