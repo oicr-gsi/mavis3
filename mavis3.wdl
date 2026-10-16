@@ -654,7 +654,7 @@ task setup {
     File configFile
     String modules
     String containerCommand = "singularity exec -B /.mounts/ -B /scratch3/ $MAVIS_ROOT/bin/mavis.sif"
-    String singularityTmpDir = "/tmp"
+    String singularityTmpDir = "$TMP"
     Int maxBins = 100000
     Int jobMemory = 16
     Int cores = 1
