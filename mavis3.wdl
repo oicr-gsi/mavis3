@@ -750,7 +750,7 @@ task convert {
     String converterAlias
     String modules
     String containerCommand = "singularity exec -B /.mounts/ -B /scratch3/ $MAVIS_ROOT/bin/mavis.sif"
-    String singularityTmpDir = "/tmp"
+    String singularityTmpDir = "$TMP"
     Int jobMemory = 16
     Int cores = 1
     Int timeout = 6
@@ -825,7 +825,7 @@ task cluster {
     Array[File] convertedFiles
     String modules
     String containerCommand = "singularity exec -B /.mounts/ -B /scratch3/ $MAVIS_ROOT/bin/mavis.sif"
-    String singularityTmpDir = "/tmp"
+    String singularityTmpDir = "$TMP"
     Int jobMemory = 16
     Int cores = 1
     Int timeout = 6
@@ -910,7 +910,7 @@ task validate {
     String batchName
     String modules
     String containerCommand = "singularity exec -B /.mounts/ -B /scratch3/ $MAVIS_ROOT/bin/mavis.sif"
-    String singularityTmpDir = "/tmp"
+    String singularityTmpDir = "$TMP"
     Int jobMemory = 32
     Int cores = 2
     Int timeout = 16
@@ -965,7 +965,7 @@ task annotate {
     File inputFile
     String modules
     String containerCommand = "singularity exec -B /.mounts/ -B /scratch3/ $MAVIS_ROOT/bin/mavis.sif"
-    String singularityTmpDir = "/tmp"
+    String singularityTmpDir = "$TMP"
     Int jobMemory = 32
     Int cores = 2
     Int timeout = 16
@@ -1024,7 +1024,7 @@ task pairing {
     Array[File] annotations
     String modules
     String containerCommand = "singularity exec -B /.mounts/ -B /scratch3/ $MAVIS_ROOT/bin/mavis.sif"
-    String singularityTmpDir = "/tmp"
+    String singularityTmpDir = "$TMP"
     Int jobMemory = 16
     Int cores = 1
     Int timeout = 12
@@ -1083,7 +1083,7 @@ task mavisSummary {
     String outputFileNamePrefix
     String modules
     String containerCommand = "singularity exec -B /.mounts/ -B /scratch3/ $MAVIS_ROOT/bin/mavis.sif"
-    String singularityTmpDir = "/tmp"
+    String singularityTmpDir = "$TMP"
     Int jobMemory = 16
     Int cores = 1
     Int timeout = 12
